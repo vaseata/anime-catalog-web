@@ -1,0 +1,2060 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>アニメカタログ</title>
+<!-- ファビコン：ポスターの壁を4枚のタイルで。色は区分の印と揃えてある
+     🟥新番組 / 🟦放送中 / 🟨劇場 / 💗みたい -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d0d10'/%3E%3Crect x='5' y='5' width='9.5' height='10' rx='1.6' fill='%23ff3355'/%3E%3Crect x='17.5' y='5' width='9.5' height='10' rx='1.6' fill='%233399ff'/%3E%3Crect x='5' y='17' width='9.5' height='10' rx='1.6' fill='%23ffcc00'/%3E%3Crect x='17.5' y='17' width='9.5' height='10' rx='1.6' fill='%23241820'/%3E%3Cpath d='M22.25 25.4c-2.6-1.9-4.1-3.2-4.1-4.9 0-1.3 1-2.3 2.2-2.3.8 0 1.5.4 1.9 1 .4-.6 1.1-1 1.9-1 1.2 0 2.2 1 2.2 2.3 0 1.7-1.5 3-4.1 4.9z' fill='%23ff5a7c'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0d0d10; --panel:#17171c; --line:#2a2a33;
+    --fg:#f2f2f5; --dim:#8b8b98; --accent:#ff3355;
+    --new:#ff3355; --airing:#3399ff; --gold:#ffc300;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; padding-bottom:4rem;
+  }
+  body.locked{overflow:hidden}
+  a{color:inherit}
+
+  /* ───────── 上のバー ───────── */
+  header{
+    position:sticky; top:0; z-index:20;
+    background:rgba(13,13,16,.92); backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .head-row{display:flex; align-items:baseline; gap:.75rem; padding:.9rem 1rem .5rem}
+  h1{font-size:1.05rem; letter-spacing:.04em; font-weight:700}
+  .meta{font-size:.72rem; color:var(--dim); margin-left:auto; text-align:right; line-height:1.4}
+
+  .filters{display:flex; flex-wrap:wrap; gap:.4rem; padding:0 1rem .75rem}
+  .grp{display:flex; gap:.25rem; background:var(--panel); border-radius:99px; padding:.2rem}
+  .grp button{
+    font:inherit; font-size:.78rem; color:var(--dim); background:none; border:0;
+    padding:.38rem .8rem; border-radius:99px; cursor:pointer; white-space:nowrap;
+  }
+  .grp button[aria-pressed="true"]{background:var(--fg); color:#111; font-weight:700}
+  .toggle{
+    font:inherit; font-size:.78rem; color:var(--dim); cursor:pointer;
+    background:var(--panel); border:1px solid var(--line); border-radius:99px; padding:.42rem .85rem;
+  }
+  .toggle[aria-pressed="true"]{background:#123; border-color:#2a6; color:#7fe0a8; font-weight:700}
+  .toggle.heart[aria-pressed="true"]{background:#2a0d15; border-color:#a3324c; color:#ff7f9c}
+
+  /* ───────── 📚 棚（利用者の案・2026-09-01）─────────
+     「タグでページごと分けてもいいかもしれません」
+     ★帯を3つ重ねたら「何が主役かわからなくなった」（利用者）。
+       芯は『ポスターの壁が主役。好みは順番に使い、絞り込みには使わない』だった。
+       → 帯をやめる。棚を選ぶと、その棚の作品が壁いっぱいに出る。入口は1つ。 */
+  .shelves{
+    display:flex; gap:.4rem; overflow-x:auto; padding:.15rem 1rem .7rem;
+    -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+  }
+  .shelves::-webkit-scrollbar{height:4px}
+  .shelves::-webkit-scrollbar-thumb{background:#33333d; border-radius:9px}
+  .shelf{
+    flex:0 0 auto; font:inherit; font-size:.76rem; cursor:pointer; white-space:nowrap;
+    padding:.42rem .85rem; border-radius:99px; color:var(--dim);
+    background:var(--panel); border:1px solid var(--line);
+  }
+  .shelf[aria-pressed="true"]{background:var(--fg); border-color:var(--fg); color:#111; font-weight:800}
+  .shelf small{opacity:.65; margin-left:.3rem; font-weight:400}
+  .shelf.grp{
+    background:none; border:0; color:#55555f; cursor:default; padding:.42rem .2rem;
+    font-size:.66rem; letter-spacing:.08em;
+  }
+  .shelf.sp[aria-pressed="false"]{border-color:#4a4550; color:#b9a9c9}
+  .shelfnote{font-size:.7rem; color:var(--dim); padding:0 1rem .6rem; line-height:1.6}
+
+  /* ───────── （旧）おすすめの帯 ─────────
+     ★利用者の指定：「一覧の上に帯で出す」。見回す楽しみ（248本）は下にそのまま残す。 */
+  .bands{padding:.4rem 0 0}
+  .band{margin-bottom:.9rem}
+  .band h2{
+    font-size:.85rem; font-weight:800; padding:.55rem 1rem .45rem;
+    display:flex; align-items:baseline; gap:.5rem;
+  }
+  .band h2 small{font-size:.68rem; font-weight:500; color:var(--dim)}
+  /* ★帯ごとに「続けて観る」 ─ 利用者の指摘 */
+  .bandplay{
+    margin-left:auto; font:inherit; font-size:.7rem; font-weight:800; cursor:pointer;
+    padding:.32rem .7rem; border-radius:99px; white-space:nowrap;
+    background:#2a0d15; border:1px solid #a3324c; color:#ff9fb5;
+  }
+  .bandplay:hover{background:var(--accent); border-color:var(--accent); color:#fff}
+  .band .row{
+    display:flex; gap:.6rem; overflow-x:auto; padding:0 1rem .35rem;
+    scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;
+  }
+  .band .row::-webkit-scrollbar{height:5px}
+  .band .row::-webkit-scrollbar-thumb{background:#33333d; border-radius:9px}
+  .bcard{flex:0 0 116px; cursor:pointer; scroll-snap-align:start}
+  .bcard .shot{aspect-ratio:2/3; border-radius:8px}
+  .bcard .why{
+    font-size:.63rem; line-height:1.4; color:#b9b9c6; margin-top:.32rem;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .bcard .bt{
+    font-size:.7rem; font-weight:700; margin-top:.28rem; line-height:1.3;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .score{
+    position:absolute; top:.3rem; left:.3rem; font-size:.6rem; font-weight:800;
+    background:rgba(0,0,0,.72); color:#ffd166; padding:.15rem .35rem; border-radius:5px;
+    backdrop-filter:blur(3px);
+  }
+  .band.new h2{color:#5eead4}
+  .band.mov h2{color:#ffcc00}
+  .band.soon h2{color:#a78bfa}
+  .band.seq h2{color:#ff8a5c}
+  .band.rec h2{color:#ffd166}
+
+  /* まだ好みを教わっていないときの誘い */
+  .invite{
+    margin:.8rem 1rem 0; padding:1rem 1.1rem; border-radius:12px;
+    background:linear-gradient(135deg,#1b1520,#141a20); border:1px solid #33303d;
+  }
+  .invite b{font-size:.9rem}
+  .invite p{font-size:.76rem; color:var(--dim); line-height:1.8; margin-top:.35rem}
+  .invite button{
+    margin-top:.75rem; font:inherit; font-size:.82rem; font-weight:800; cursor:pointer;
+    padding:.6rem 1.2rem; border-radius:99px; border:0; background:var(--gold); color:#221a00;
+  }
+
+  /* ───────── 好みを教える画面（ポスターをタップ）───────── */
+  .teach{position:fixed; inset:0; z-index:50; background:var(--bg); overflow-y:auto; padding-bottom:6rem}
+  .teach header{position:sticky; top:0; padding:1rem}
+  .teach h2{font-size:1rem; font-weight:800}
+  .teach p{font-size:.76rem; color:var(--dim); line-height:1.75; margin-top:.35rem}
+  .tgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; padding:1rem}
+  @media(min-width:520px){ .tgrid{grid-template-columns:repeat(4,1fr)} }
+  @media(min-width:760px){ .tgrid{grid-template-columns:repeat(6,1fr)} }
+  @media(min-width:1100px){ .tgrid{grid-template-columns:repeat(8,1fr)} }
+  .tcard{scroll-margin-top:6rem; cursor:pointer; position:relative; border-radius:9px; overflow:hidden; aspect-ratio:2/3; background:#22222a}
+  .tcard img{width:100%; height:100%; object-fit:cover; display:block; transition:transform .12s, filter .12s}
+  .tcard .yr{
+    position:absolute; left:0; bottom:0; right:0; font-size:.58rem; color:#ddd;
+    background:linear-gradient(transparent,rgba(0,0,0,.9)); padding:1rem .3rem .22rem;
+  }
+  .tcard[aria-pressed="true"]{outline:3px solid var(--gold); outline-offset:-3px}
+  .tcard[aria-pressed="true"] img{filter:brightness(1.08) saturate(1.15)}
+  .tcard .tick{
+    position:absolute; top:.3rem; right:.3rem; width:1.4rem; height:1.4rem; border-radius:50%;
+    background:var(--gold); color:#221a00; font-size:.8rem; font-weight:900;
+    display:none; place-items:center;
+  }
+  .tcard[aria-pressed="true"] .tick{display:grid}
+  .tbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:51; display:flex; gap:.6rem; justify-content:center;
+    background:rgba(13,13,16,.96); backdrop-filter:blur(10px); border-top:1px solid var(--line); padding:.8rem 1rem;
+  }
+  .tbar button{
+    font:inherit; font-size:.85rem; font-weight:800; cursor:pointer;
+    padding:.7rem 1.2rem; border-radius:99px; border:1px solid var(--line);
+    background:#101015; color:var(--fg);
+  }
+  .tbar button.primary{background:var(--gold); border-color:var(--gold); color:#221a00}
+  .tbar button:disabled{opacity:.45; cursor:default}
+
+  
+
+/* ───────── 🎞 予告編タイム ─────────
+     ★GBが出た場所。映画館の予告編タイムを、家で・メモが取れる状態で再現する。
+       映画館は「1か月〜半年後に公開が決まったもの」が黙っていても次々流れてくる（利用者の指定）。
+       おすすめは「探す」ではなく「流す順番」だけを決める。出会いは奪わない。 */
+  .pvtime{
+    position:fixed; inset:0; z-index:60; background:#000;
+    display:flex; flex-direction:column;
+  }
+  .pvhead{
+    display:flex; align-items:center; gap:.7rem; padding:.6rem .8rem;
+    background:#0d0d10; border-bottom:1px solid var(--line); flex:0 0 auto;
+  }
+  .pvhead .pvclose{
+    font:inherit; font-size:1rem; width:2.1rem; height:2.1rem; border-radius:50%;
+    background:#22222a; color:var(--fg); border:0; cursor:pointer; display:grid; place-items:center;
+  }
+  .pvhead .pvclose:hover{background:var(--accent)}
+  .pvcount{font-size:.78rem; font-weight:800}
+  .pvorder{font-size:.68rem; color:var(--dim); margin-left:auto}
+  .pvbar{height:2px; background:#22222a; flex:0 0 auto}
+  .pvbar i{display:block; height:100%; background:var(--gold); transition:width .3s}
+
+  .pvstage{position:relative; width:100%; aspect-ratio:16/9; background:#000; flex:0 0 auto}
+  .pvstage iframe, .pvstage > div{position:absolute; inset:0; width:100%; height:100%; border:0}
+
+  .pvbody{flex:1 1 auto; overflow-y:auto; padding:.9rem 1rem 1rem}
+  .pvbody h2{font-size:1rem; font-weight:800; line-height:1.4}
+  .pvline{font-size:.76rem; color:#c9c9d4; margin-top:.35rem}
+  .pvline b{color:var(--fg)}
+  .pvwhy{
+    font-size:.74rem; color:#ffd166; margin-top:.5rem; line-height:1.6;
+    background:#1c1808; border:1px solid #4a3d12; border-radius:8px; padding:.5rem .65rem;
+  }
+  .pvsvc{font-size:.76rem; margin-top:.5rem}
+  .pvsvc .own{color:#8ee8b4; font-weight:700}
+  .pvsvc .gek{color:#ffcc00; font-weight:800}
+  .pvsvc .unk{color:#c9a86a}
+  .pvskip{font-size:.72rem; color:var(--dim); margin-top:.6rem}
+
+  .pvacts{
+    flex:0 0 auto; display:grid; grid-template-columns:1fr 1fr; gap:.6rem;
+    padding:.7rem 1rem calc(.9rem + env(safe-area-inset-bottom));
+    background:#0d0d10; border-top:1px solid var(--line);
+  }
+  .pvacts button{
+    font:inherit; font-size:.9rem; font-weight:800; cursor:pointer;
+    padding:.85rem; border-radius:10px; border:1px solid var(--line);
+    background:#17171c; color:var(--fg);
+  }
+  .pvacts button.like[aria-pressed="true"]{background:#2a0d15; border-color:#a3324c; color:#ff9fb5}
+  .pvacts button.next{background:var(--accent); border-color:var(--accent); color:#fff}
+  /* ★「興味ない」＝観なくても『違う』と言える唯一の手段（利用者の指摘） */
+  .nope{
+    display:block; width:calc(100% - 2rem); margin:0 1rem 1.4rem; padding:.7rem;
+    font:inherit; font-size:.8rem; font-weight:700; cursor:pointer; border-radius:9px;
+    background:none; border:1px dashed #4a4a55; color:var(--dim);
+  }
+  .nope:hover{border-color:#8a5a5a; color:#d99}
+  .nope[aria-pressed="true"]{background:#241418; border:1px solid #7a4050; color:#e0a0b0}
+  .pvacts.three{grid-template-columns:1fr 1fr 1fr}
+  .pvacts button.nope2{font-size:.8rem}
+  .pvacts button:hover{filter:brightness(1.15)}
+
+  @media(min-width:900px){
+    .pvtime:not(:fullscreen){flex-direction:row; flex-wrap:wrap; align-content:flex-start}
+    .pvtime:not(:fullscreen) .pvhead,
+    .pvtime:not(:fullscreen) .pvbar{width:100%}
+    .pvtime:not(:fullscreen) .pvstage{flex:1 1 62%; aspect-ratio:16/9; max-width:64%}
+    .pvtime:not(:fullscreen) .pvbody{flex:1 1 36%; max-height:none}
+    .pvtime:not(:fullscreen) .pvacts{width:100%}
+  }
+
+  /* ───────── フルスクリーン＝映画館モード ─────────
+     ★利用者の指定：「映画館のようにフルスクリーンにしてほしい」
+       画面いっぱいに映像。文字は上下の薄い帯にどけて、絵の邪魔をしない。 */
+  .pvtime:fullscreen{background:#000; display:block; position:relative}
+  .pvtime:fullscreen .pvstage{
+    position:absolute; inset:0; width:100%; height:100%; aspect-ratio:auto; max-width:none;
+  }
+  .pvtime:fullscreen .pvhead{
+    position:absolute; top:0; left:0; right:0; z-index:3; border:0;
+    background:linear-gradient(rgba(0,0,0,.72), transparent); padding:.7rem 1rem 2rem;
+    opacity:0; transition:opacity .25s;
+  }
+  .pvtime:fullscreen .pvbar{position:absolute; top:0; left:0; right:0; z-index:4; background:transparent}
+  .pvtime:fullscreen .pvbody{
+    position:absolute; left:0; right:0; bottom:4.6rem; z-index:3; overflow:visible;
+    background:linear-gradient(transparent, rgba(0,0,0,.82)); padding:2.5rem 1.2rem .8rem;
+    opacity:0; transition:opacity .25s; pointer-events:none;
+  }
+  .pvtime:fullscreen .pvacts{
+    position:absolute; left:0; right:0; bottom:0; z-index:4; border:0;
+    background:rgba(0,0,0,.72); backdrop-filter:blur(8px);
+    opacity:0; transition:opacity .25s;
+  }
+  /* マウスを動かすか、押したときだけ文字が出る。ふだんは映像だけ */
+  .pvtime:fullscreen.awake .pvhead,
+  .pvtime:fullscreen.awake .pvbody,
+  .pvtime:fullscreen.awake .pvacts{opacity:1; pointer-events:auto}
+  .pvtime:fullscreen .pvbody h2{font-size:1.35rem; text-shadow:0 2px 10px #000}
+  .pvtime:fullscreen .pvline{font-size:.88rem; text-shadow:0 2px 8px #000}
+  .pvtime:fullscreen .pvskip{display:none}
+
+  .pvfull{
+    font:inherit; font-size:.95rem; width:2.1rem; height:2.1rem; border-radius:50%;
+    background:#22222a; color:var(--fg); border:0; cursor:pointer; display:grid; place-items:center;
+  }
+  .pvfull:hover{background:var(--accent)}
+
+  /* ───────── 🔤 言葉で選ぶ（チェックするだけ）─────────
+     ★利用者の指摘
+       → ゼロから書かせない。並べて、押すだけにする。ポスターの好み聞き取りと同じ考え方。 */
+  .words{position:fixed; inset:0; z-index:50; background:var(--bg); overflow-y:auto; padding-bottom:6rem}
+  .words header{position:sticky; top:0; background:rgba(13,13,16,.96); backdrop-filter:blur(10px); padding:1rem; z-index:2}
+  .words h2{font-size:1rem; font-weight:800}
+  .words p{font-size:.76rem; color:var(--dim); line-height:1.7; margin-top:.3rem}
+  .words h3{font-size:.82rem; font-weight:800; padding:1.1rem 1rem .5rem; color:#cfcfda}
+  .words h3 small{font-weight:500; color:var(--dim); font-size:.7rem; margin-left:.4rem}
+
+  .bundles{display:grid; grid-template-columns:1fr; gap:.55rem; padding:0 1rem}
+  @media(min-width:620px){ .bundles{grid-template-columns:1fr 1fr} }
+  @media(min-width:1000px){ .bundles{grid-template-columns:1fr 1fr 1fr} }
+  .bnd{
+    display:flex; gap:.7rem; align-items:center; cursor:pointer; text-align:left;
+    background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:.6rem .7rem;
+    font:inherit; color:var(--fg);
+  }
+  .bnd[data-v="好き"]{background:#1c1808; border-color:var(--gold)}
+  .bnd[data-v="苦手"]{background:#1d1114; border-color:#a3324c; opacity:.85}
+  .bnd[data-v="苦手"] .nm{text-decoration:line-through; text-decoration-color:#a3324c}
+  .bnd .pic{width:44px; height:66px; flex:0 0 44px; border-radius:5px; overflow:hidden; background:#22222a}
+  .bnd .pic img{width:100%; height:100%; object-fit:cover; display:block}
+  .bnd .txt{flex:1; min-width:0}
+  .bnd .nm{font-size:.86rem; font-weight:800; line-height:1.3}
+  .bnd .ct{font-size:.68rem; color:var(--dim); margin-top:.2rem}
+  .bnd .frm{font-size:.66rem; color:#8b8b98; margin-top:.25rem; line-height:1.45;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .bnd .tick2{width:1.5rem; flex:0 0 1.5rem; text-align:center; font-size:1.1rem; color:#3d3d48}
+  .bnd[data-v="好き"] .tick2{color:var(--gold)}
+  .bnd[data-v="苦手"] .tick2{color:#ff7f9c}
+
+  .chips{display:flex; flex-wrap:wrap; gap:.4rem; padding:0 1rem}
+  .chip{
+    font:inherit; font-size:.76rem; cursor:pointer; padding:.4rem .75rem; border-radius:99px;
+    background:var(--panel); border:1px solid var(--line); color:var(--dim);
+  }
+  .chip[data-v="好き"]{background:var(--gold); border-color:var(--gold); color:#221a00; font-weight:800}
+  .chip[data-v="苦手"]{background:#2a0d15; border-color:#a3324c; color:#ff9fb5; font-weight:700; text-decoration:line-through}
+  .chip small{opacity:.6; margin-left:.25rem}
+
+  /* ───────── 🖼 絵だけで見る ─────────
+     ★利用者の指摘
+     → 文字を全部消して、絵だけを敷き詰める。
+       何の作品かは、押すまで分からない。★それが「なにこれ？」の条件。 */
+  .wall.bare{gap:.28rem; padding:.4rem; grid-template-columns:repeat(3,1fr)}
+  @media(min-width:520px){ .wall.bare{grid-template-columns:repeat(5,1fr)} }
+  @media(min-width:760px){ .wall.bare{grid-template-columns:repeat(7,1fr)} }
+  @media(min-width:1020px){ .wall.bare{grid-template-columns:repeat(9,1fr)} }
+  @media(min-width:1340px){ .wall.bare{grid-template-columns:repeat(11,1fr)} }
+  .wall.bare .title, .wall.bare .sub,
+  .wall.bare .kbn, .wall.bare .svc, .wall.bare .when, .wall.bare .mine{display:none}
+  .wall.bare .shot{border-radius:4px; box-shadow:none}
+  .wall.bare .play{width:1.4rem; height:1.4rem; font-size:.55rem; right:.15rem; bottom:.15rem; opacity:0}
+  .wall.bare .card:hover .play{opacity:1}
+  .wall.bare .card:hover .shot{transform:scale(1.06); z-index:2; box-shadow:0 4px 18px rgba(0,0,0,.8)}
+
+  /* ───────── ポスターの壁 ───────── */
+  .wall{
+    display:grid; gap:.85rem .7rem; padding:1rem;
+    grid-template-columns:repeat(2,1fr);
+  }
+  @media(min-width:520px){ .wall{grid-template-columns:repeat(3,1fr)} }
+  @media(min-width:760px){ .wall{grid-template-columns:repeat(4,1fr)} }
+  @media(min-width:1020px){ .wall{grid-template-columns:repeat(5,1fr)} }
+  @media(min-width:1340px){ .wall{grid-template-columns:repeat(6,1fr)} }
+
+  .card{cursor:pointer; display:flex; flex-direction:column; gap:.4rem}
+  .shot{
+    position:relative; aspect-ratio:2/3; border-radius:9px; overflow:hidden;
+    background:#22222a; box-shadow:0 2px 10px rgba(0,0,0,.5);
+    transition:transform .14s ease;
+  }
+  .card:hover .shot{transform:translateY(-3px)}
+  .shot img{width:100%; height:100%; object-fit:cover; display:block}
+  .shot .fallback{
+    position:absolute; inset:0; display:grid; place-items:center; text-align:center;
+    font-size:.7rem; color:var(--dim); padding:.5rem; background:#1c1c22;
+  }
+  /* ★ display:grid だけ書くと hidden 属性が効かず、エラー文が絵の上に乗り続ける */
+  .shot .fallback[hidden]{display:none}
+
+  .kbn{
+    position:absolute; top:0; left:0; font-size:.62rem; font-weight:700;
+    padding:.2rem .45rem; border-bottom-right-radius:7px; letter-spacing:.05em;
+  }
+  .kbn.新番組{background:var(--new); color:#fff}
+  .kbn.放送中{background:var(--airing); color:#fff}
+  .kbn.劇場{background:#ffcc00; color:#221a00}
+  .kbn.最近公開{background:#8b5cf6; color:#fff}
+
+  /* 配信バッジ（右上）★絵から目を離さずに「観られるか」が分かる場所 */
+  .svc{position:absolute; top:.3rem; right:.3rem; display:flex; flex-direction:column; gap:.22rem; align-items:flex-end}
+  .pill{
+    font-size:.6rem; font-weight:800; letter-spacing:.02em;
+    padding:.16rem .38rem; border-radius:4px; color:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.6); line-height:1.3;
+  }
+  .pill.dim{background:rgba(20,20,24,.82)!important; color:#9a9aa8; font-weight:600; border:1px solid #44444f}
+  /* ★参考＝リンクはあるが、そこで観られるかは確かめていない。濃い印にしない */
+  .pill.ref{background:rgba(20,20,24,.82)!important; color:#c9a86a; font-weight:600; border:1px dashed #6a5a3a}
+  .pill.gek{background:#ffcc00!important; color:#221a00; font-weight:800}
+  .sub .ref-note{color:#c9a86a}
+  .sub .gek-note{color:#ffcc00; font-weight:700}
+
+  .when{
+    position:absolute; left:0; right:0; bottom:0;
+    background:linear-gradient(transparent,rgba(0,0,0,.85));
+    padding:1.4rem .45rem .35rem; font-size:.66rem; font-weight:600; color:#e8e8ee;
+  }
+  .when.tbd{color:#b0a070}
+
+  /* ▶ 予告編に一発で行くボタン（右下） */
+  .play{
+    position:absolute; right:.35rem; bottom:.35rem; width:1.85rem; height:1.85rem;
+    border-radius:50%; border:0; cursor:pointer; display:grid; place-items:center;
+    background:rgba(0,0,0,.55); backdrop-filter:blur(3px); color:#fff; font-size:.7rem;
+    box-shadow:0 1px 6px rgba(0,0,0,.7); transition:background .12s, transform .12s;
+  }
+  .play:hover{background:var(--accent); transform:scale(1.12)}
+
+  /* 利用者の印：みたい／みた＋★
+     ★左下に置いたら日付と重なって「♥026年10月16日」になっていた。
+       区分の帯のすぐ下（左上）に移動。 */
+  .mine{
+    position:absolute; left:.35rem; top:1.65rem; display:flex; gap:.25rem; align-items:center;
+    font-size:.7rem; font-weight:800; text-shadow:0 1px 5px rgba(0,0,0,.95);
+  }
+  .mine .h{color:#ff5a7c}
+  .mine .s{color:var(--gold)}
+
+  .title{
+    font-size:.76rem; line-height:1.35; font-weight:600;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .sub{font-size:.66rem; color:var(--dim); display:flex; gap:.4rem; flex-wrap:wrap}
+  .wall .why{
+    font-size:.63rem; line-height:1.45; color:#9a9aa8; margin-top:.15rem;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .wall.bare .why{display:none}
+
+  /* ───────── ♥棚を「状態」で分ける ─────────
+     ★利用者の指摘
+     実測：♥20作品のうち「🔴いま観られる」が8作品、「⚪待ち」が9作品。
+     同じ顔で並んでいるから、今日できる8作品が9作品の待ちに紛れて埋もれる。
+     通知は「待ち」にしか効かない（始まる日に鳴るので）。
+     もう始まっているものは、永遠に何も鳴らない ── そこがいちばん埋もれる。 */
+  .grouphead{
+    grid-column:1 / -1; display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;
+    padding:1.1rem .1rem .3rem; font-size:.9rem; font-weight:800;
+  }
+  .grouphead:first-child{padding-top:.2rem}
+  .grouphead small{font-size:.7rem; font-weight:500; color:var(--dim)}
+  .grouphead.now{color:#ff5a7c}
+  .grouphead.soon2{color:#ffd166}
+  .grouphead.wait{color:#8b8b98}
+  .grouphead.seen2{color:#7fe0a8}
+  .groupsep{grid-column:1 / -1; height:1px; background:var(--line); margin:.2rem 0 .1rem}
+
+  /* ───────── ♥棚の行動ボタン ─────────
+     ★利用者の指摘
+     ♥は終点ではなく拠点。押した先で、実際に動けるようにする。 */
+  .acts2{display:flex; gap:.3rem; margin-top:.3rem; flex-wrap:wrap}
+  .acts2 a, .acts2 button{
+    font:inherit; font-size:.66rem; font-weight:700; cursor:pointer; text-decoration:none;
+    padding:.34rem .6rem; border-radius:7px; border:1px solid var(--line);
+    background:#17171c; color:var(--fg); line-height:1.3;
+  }
+  .acts2 a.go{background:var(--accent); border-color:var(--accent); color:#fff}
+  .acts2 a.gek{background:#ffcc00; border-color:#ffcc00; color:#221a00}
+  .acts2 a.ref{border-style:dashed; border-color:#6a5a3a; color:#c9a86a; background:none}
+  .acts2 button.seen[aria-pressed="true"]{background:#0e2a1c; border-color:#2a7a52; color:#8ee8b4}
+  .acts2 .when2{font-size:.64rem; color:var(--dim); padding:.34rem .2rem; border:0; background:none}
+  .wall.bare .acts2{display:none}
+  .unknown-note{color:#a8895c}
+
+  .empty{padding:3rem 1rem; text-align:center; color:var(--dim); font-size:.85rem; line-height:1.9}
+  .loading{padding:4rem 1rem; text-align:center; color:var(--dim)}
+
+  /* ───────── △先頭へ ─────────
+     248本あるので、下まで行くと戻るのが遠い。少し下げたら出る。 */
+  .totop{
+    position:fixed; right:1rem; bottom:calc(1.1rem + env(safe-area-inset-bottom));
+    z-index:30; width:3.7rem; height:3.7rem; border-radius:50%; padding:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.18rem;
+    font:inherit; font-size:.6rem; font-weight:700; line-height:1; cursor:pointer;
+    background:rgba(23,23,28,.94); color:var(--fg); border:1px solid var(--line);
+    backdrop-filter:blur(10px); box-shadow:0 4px 16px rgba(0,0,0,.6);
+    opacity:0; transform:translateY(12px) scale(.9); pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease, background .14s ease, border-color .14s ease;
+  }
+  .totop .ar{font-size:.85rem; line-height:1}
+  .totop.on{opacity:1; transform:none; pointer-events:auto}
+  .totop:hover{background:var(--accent); border-color:var(--accent)}
+  .totop:active{transform:scale(.93)}
+
+  /* ───────── 一覧の終わり ─────────
+     ★利用者が最後までスクロールして「で、何がしたかったんだっけ？」となった場所。
+       見るだけで終わらせず、ここで判断の結果を受け止める。 */
+  .end{
+    margin:1rem; padding:1.6rem 1.2rem; text-align:center;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  }
+  .end .cnt{font-size:.82rem; color:var(--dim); line-height:2}
+  .end .cnt b{color:var(--fg); font-size:1.05rem}
+  .end .got{color:#ff7f9c; font-weight:800; font-size:1.15rem}
+  .end .zero{color:#c9a86a; font-size:.82rem; line-height:1.9; margin-top:.5rem}
+  .end .btns{display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; margin-top:1rem}
+  .end .btns button{
+    font:inherit; font-size:.8rem; font-weight:700; cursor:pointer;
+    padding:.6rem 1.1rem; border-radius:99px; border:1px solid var(--line);
+    background:#101015; color:var(--fg);
+  }
+  .end .btns button.primary{background:#2a0d15; border-color:#a3324c; color:#ff9fb5}
+
+  /* ───────── 個票（MOVIE WALKER のあの画面） ───────── */
+  .veil{position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:40; backdrop-filter:blur(3px)}
+  .sheet{
+    position:fixed; inset:0; z-index:41; overflow-y:auto; overscroll-behavior:contain;
+    background:var(--bg);
+  }
+  @media(min-width:760px){
+    .sheet{
+      inset:2.5vh auto 2.5vh 50%; transform:translateX(-50%);
+      width:min(680px,94vw); height:95vh; border-radius:16px;
+      box-shadow:0 20px 70px rgba(0,0,0,.75);
+    }
+  }
+
+  .hero{position:relative; min-height:230px; display:flex; align-items:flex-end}
+  .hero-bg{position:absolute; inset:0; overflow:hidden}
+  .hero-bg img{width:100%; height:100%; object-fit:cover}
+  /* 背景バナーは新番組では 42% しか無い。無いときはポスターを拡大＋ぼかして使う */
+  .hero-bg.blur img{filter:blur(18px) saturate(1.3) brightness(.55); transform:scale(1.25)}
+  .hero-bg::after{content:""; position:absolute; inset:0;
+    background:linear-gradient(to top,rgba(13,13,16,.97) 4%,rgba(13,13,16,.55) 55%,rgba(13,13,16,.35))}
+  .hero-inner{position:relative; display:flex; gap:.85rem; padding:1rem; width:100%; align-items:flex-end}
+  .hero-poster{width:104px; flex:0 0 104px; aspect-ratio:2/3; border-radius:7px; overflow:hidden;
+    box-shadow:0 4px 18px rgba(0,0,0,.7); background:#22222a}
+  .hero-poster img{width:100%; height:100%; object-fit:cover; display:block}
+  .hero-text{flex:1; min-width:0; display:flex; flex-direction:column; gap:.3rem}
+  .hero-text h2{font-size:1.12rem; line-height:1.35; font-weight:800}
+  .hero-line{font-size:.74rem; color:#c9c9d4}
+  .hero-line b{color:var(--fg)}
+  .hero-stats{display:flex; gap:.8rem; align-items:center; font-size:.8rem; flex-wrap:wrap}
+  .hero-stats .heart{color:#ff5a7c; font-weight:700}
+  .hero-stats .mystar{color:var(--gold); font-weight:700}
+  .badge-mitai{font-size:.72rem; color:#ff8fa6; font-weight:700}
+
+  .close{
+    position:absolute; top:.6rem; left:.6rem; z-index:3; width:2.1rem; height:2.1rem;
+    border-radius:50%; border:0; cursor:pointer; background:rgba(0,0,0,.55);
+    color:#fff; font-size:1.1rem; display:grid; place-items:center; backdrop-filter:blur(4px);
+  }
+  .close:hover{background:rgba(0,0,0,.85)}
+
+  /* [みたい][みた][予告編] ─ MOVIE WALKER の3つ */
+  .acts{display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+  .acts button{
+    font:inherit; background:none; border:0; cursor:pointer; color:var(--dim);
+    padding:.75rem .3rem; display:flex; flex-direction:column; align-items:center; gap:.22rem;
+    font-size:.72rem; font-weight:600;
+  }
+  .acts button + button{border-left:1px solid var(--line)}
+  .acts button .ico{font-size:1.15rem; line-height:1}
+  .acts button[aria-pressed="true"]{color:#ff5a7c}
+  .acts button.watch[aria-pressed="true"]{color:#7fc4ff}
+  .acts button:disabled{opacity:.35; cursor:default}
+
+  .bigbtn{
+    display:block; margin:.9rem 1rem; padding:.85rem; border-radius:9px; border:0;
+    font:inherit; font-size:.9rem; font-weight:800; text-align:center; cursor:pointer;
+    text-decoration:none; color:#fff; background:var(--accent);
+  }
+  .bigbtn.official{background:var(--panel); border:1px solid var(--line); color:var(--fg)}
+  .bigbtn.unknown{background:var(--panel); border:1px dashed #6a5a3a; color:#c9a86a; cursor:default}
+
+  /* ★・感想・レビュー */
+  .review{margin:0 1rem 1rem; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:.9rem}
+  .review h3{font-size:.8rem; margin-bottom:.55rem; color:#cfcfda}
+  .stars{display:flex; gap:.15rem; margin-bottom:.7rem}
+  .stars button{
+    font:inherit; background:none; border:0; cursor:pointer; font-size:1.55rem; line-height:1;
+    color:#3d3d48; padding:0 .05rem; transition:color .1s, transform .1s;
+  }
+  .stars button.on{color:var(--gold)}
+  .stars button:hover{transform:scale(1.16)}
+  .review label{display:block; font-size:.72rem; color:var(--dim); margin:.55rem 0 .25rem}
+  .review input, .review textarea{
+    width:100%; font:inherit; font-size:.82rem; color:var(--fg);
+    background:#101015; border:1px solid var(--line); border-radius:7px; padding:.55rem .6rem;
+    resize:vertical;
+  }
+  .review textarea{min-height:5.5rem; line-height:1.6}
+  .saved{font-size:.7rem; color:#7fe0a8; margin-top:.5rem; min-height:1em}
+
+  .info{margin:0 1rem 1rem; font-size:.78rem; line-height:1.85; color:#c2c2ce}
+  .info dt{color:var(--dim); font-size:.7rem; margin-top:.6rem}
+  .info dd{margin:0}
+  .info .svclist{display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.3rem}
+  .info .svclist a, .info .svclist span{
+    font-size:.72rem; padding:.28rem .55rem; border-radius:6px; text-decoration:none;
+    background:var(--panel); border:1px solid var(--line);
+  }
+  .info .svclist a.own{background:#0e2a1c; border-color:#2a7a52; color:#8ee8b4; font-weight:700}
+  .info .svclist a.ref{border-style:dashed; border-color:#6a5a3a; color:#c9a86a}
+  .links{display:flex; gap:.5rem; flex-wrap:wrap; margin:.8rem 0 2rem}
+  .links a{font-size:.75rem; padding:.5rem .8rem; border-radius:7px; background:var(--panel);
+    border:1px solid var(--line); text-decoration:none}
+
+  /* 予告編 */
+  .trailer{margin:0 1rem 1rem; aspect-ratio:16/9; border-radius:10px; overflow:hidden; background:#000}
+  .trailer iframe{width:100%; height:100%; border:0; display:block}
+
+  /* 下部固定：いま観られるか */
+  .dock{
+    position:sticky; bottom:0; background:rgba(13,13,16,.95); backdrop-filter:blur(10px);
+    border-top:1px solid var(--line); padding:.7rem 1rem; font-size:.78rem;
+    display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;
+  }
+  .dock .own{color:#8ee8b4; font-weight:800}
+  .dock .no{color:var(--dim)}
+  .dock .unk{color:#c9a86a}
+  .dock .gek{color:#ffcc00; font-weight:800}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-row">
+    <h1>🎬 アニメカタログ</h1>
+    <div class="meta" id="meta"></div>
+  </div>
+  <div class="shelves" id="shelves"></div>
+  <div class="shelfnote" id="shelfnote"></div>
+  <div class="filters">
+    <div class="grp" id="f-sort">
+      <button data-v="棚" aria-pressed="true">棚の順</button>
+      <button data-v="日付">放送日順</button>
+      <button data-v="人気">人気順</button>
+      <button data-v="ばらばら">ばらばら</button>
+    </div>
+    <button class="toggle" id="f-watchable" aria-pressed="false">▶ 本当に観られるものだけ</button>
+    <button class="toggle heart" id="f-mine" aria-pressed="false">♥ みたい・みた だけ</button>
+    <button class="toggle" id="f-teach">🎲 好みを教える</button>
+    <button class="toggle" id="f-words">🔤 言葉で選ぶ</button>
+    <button class="toggle" id="f-bare" aria-pressed="false">🖼 絵だけで見る</button>
+    <button class="toggle" id="f-shelfplay" style="background:#2a0d15;border-color:#a3324c;color:#ff9fb5;font-weight:800">▶ この棚を続けて観る</button>
+    <button class="toggle" id="f-export" title="この端末で押した♥などを写して、Macに戻すため">📤 記録を写す</button>
+    <button class="toggle" id="f-pvtime" style="background:#1a1520;border-color:#4a4550;color:#c9b9d9;font-weight:700">🎞 予告編タイム</button>
+  </div>
+</header>
+
+<div class="loading" id="loading">素材を読み込んでいます…</div>
+<main class="wall" id="wall" hidden></main>
+<footer class="end" id="end" hidden></footer>
+<div class="empty" id="empty" hidden></div>
+<button class="totop" id="totop" aria-label="先頭へ戻る"><span class="ar">▲</span><span>先頭へ</span></button>
+<div id="modal"></div>
+<div id="teach"></div>
+<div id="words"></div>
+<div id="pvtime"></div>
+
+<script type="module">
+import { buildTaste, rankWorks, 続編を探す, tasteは空, 知られ具合, 世間の数を測る, 前例のない } from './score.mjs';
+
+const state = {
+  works: [], byId: new Map(),
+  watchlist: new Map(),   // id → { id, タイトル, ポスター, 押した日 }
+  reviews:   new Map(),   // id → { id, タイトル, みた日, ★, 感想, レビュー }
+  picks:     new Map(),   // id → 好み聞き取りでタップした作品（seeds の中身をそのまま）
+  pvSeen:    new Map(),   // id → 予告編タイムで見送った作品 ★「また同じ予告編からか」を防ぐ
+  notForMe:  new Map(),   // id → 「🚫 興味ない」を押した作品 ★観なくても『違う』と言える唯一の手段
+  人気の扱い: 'マイナーを上に',
+  lineage: null,           // シリーズの系譜（前作の前作…まで遡ったもの）
+  帯: {},
+  束: [],                  // data/keywords.json（利用者の言葉 → AniListのタグ）
+  選んだ束: new Set(),      // 「好き」と押した束
+  嫌いな束: new Set(),      // 「苦手」と押した束 ★利用者の指摘
+  選んだタグ: new Set(),     // 「好き」と押した言葉（'タグ:Philosophy' の形）
+  嫌いなタグ: new Set(),     // 「苦手」と押した言葉
+  seeds: [], taste: null, lexicon: {},
+  棚:'選:押した', sort:'棚', watchable:false, mine:false, bare:false, たね:1,
+  契約: [],
+};
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toLocaleDateString('sv-SE');   // YYYY-MM-DD
+
+/* ───────── 保存（画面 → data/ のファイル） ─────────
+   ★localStorage ではなくファイルに書く。チャットは流れるが、ファイルは残る。 */
+const savers = {};
+function save(key){
+  clearTimeout(savers[key]);
+  savers[key] = setTimeout(async () => {
+    const v = state[key];
+    // Map は中身の配列に、ふつうの物はそのまま
+    const body = JSON.stringify(v instanceof Map ? [...v.values()] : v, null, 1);
+    try {
+      localStorage.setItem('anime:' + key, body);
+      flash('この端末に保存しました');
+    } catch (e) {
+      flash('⚠️ 保存できませんでした：' + e.message, true);
+    }
+  }, 350);
+}
+function flash(msg, bad){
+  const el = document.getElementById('saved');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = bad ? '#ff8080' : '#7fe0a8';
+  if (!bad) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 1800);
+}
+
+/* ───────── 一覧 ───────── */
+function matchKbn(w, kbn){
+  // ★「最近公開」＝劇場アニメ等で、公開されて10か月以内のもの。
+  //   AniListは上映終了を持っていないので「上映中」とは言い切らない
+  if (kbn === 'ぜんぶ') return w.区分 === '新番組' || w.区分 === '放送中' || w.区分 === '最近公開';
+  if (kbn === '劇場')   return w.形式 === 'MOVIE';
+  return w.区分 === kbn;
+}
+
+/**
+ * 放送日順の中身。★ここは一度まちがえた場所。
+ *   新番組 → これから始まる順（昇順）。近いものから知りたい
+ *   放送中 → 最近始まった順（降順）。昇順にするとサザエさん(1969)が最上段に来てしまう
+ */
+function byDate(a, b){
+  const 新A = a.区分 === '新番組', 新B = b.区分 === '新番組';
+  if (新A !== 新B) return 新A ? -1 : 1;
+  const ad = a.放送開始?.length === 10 ? a.放送開始 : null;
+  const bd = b.放送開始?.length === 10 ? b.放送開始 : null;
+  if (ad && bd){
+    if (ad === bd) return (b.人気|0) - (a.人気|0);
+    return 新A ? (ad < bd ? -1 : 1) : (ad > bd ? -1 : 1);
+  }
+  if (ad) return -1;
+  if (bd) return 1;
+  return (b.人気|0) - (a.人気|0);
+}
+
+function visible(){
+  let list = 棚の中身(state.棚);
+  if (state.watchable) list = list.filter(r => r.w.配信.契約中.length > 0);
+  if (state.mine) list = list.filter(r => state.watchlist.has(r.w.id) || state.reviews.has(r.w.id));
+
+  if (state.sort === 'ばらばら') {
+    // ★セレンディピティ。本屋の隣の棚が予想できないのと同じで、順番を予想させない。
+    //   押すたび たね が変わるので、混ざり直す
+    const 混ぜる = (id) => { let x = (id * 2654435761 + state.たね * 40503) >>> 0;
+      x ^= x >>> 15; x = (x * 2246822507) >>> 0; return x; };
+    list.sort((a, b) => 混ぜる(a.w.id) - 混ぜる(b.w.id));
+  } else if (state.sort === '人気') {
+    list.sort((a, b) => (b.w.人気|0) - (a.w.人気|0));
+  } else if (state.sort === '日付') {
+    list.sort((a, b) => byDate(a.w, b.w));
+  } else if (!list.some(r => r.点 != null)) {
+    // 「棚の順」で、点が無い棚なら放送日順
+    list.sort((a, b) => byDate(a.w, b.w));
+  }
+  return list;
+}
+
+function card({ w, 点, 理由 }){
+  const kbnLabel = w.形式 === 'MOVIE' ? '劇場' : w.区分;
+
+  // ★段ごとに見た目を変える。契約中だけが「観られる」。参考は観られる保証がない
+  const pills = [];
+  if (w.配信.劇場) pills.push(`<span class="pill gek">劇場</span>`);
+  else {
+    for (const s of w.配信.契約中.slice(0,2))
+      pills.push(`<span class="pill" style="background:${esc(s.色)}">${esc(s.略)}</span>`);
+    if (!w.配信.契約中.length){
+      for (const s of w.配信.未加入.slice(0,2)) pills.push(`<span class="pill dim">${esc(s.略)}</span>`);
+      if (!w.配信.未加入.length)
+        for (const s of w.配信.参考.slice(0,1)) pills.push(`<span class="pill ref">${esc(s.略)}</span>`);
+    }
+  }
+
+  const 配信文 =
+      w.配信.劇場        ? `<span class="gek-note">${esc(w.配信.劇場の言葉)}</span>`
+    : w.配信.契約中.length ? w.配信.契約中.map(s=>s.表示).join('・')
+    : w.配信.未加入.length ? w.配信.未加入.map(s=>s.表示).join('・')
+    : w.配信.参考.length   ? `<span class="ref-note">${esc(w.配信.参考[0].表示)}</span>`
+    : `<span class="unknown-note">${esc(w.配信.分からないときの言葉)}</span>`;
+
+  const img = w.ポスター
+    ? `<img src="${esc(w.ポスター)}" alt="" loading="lazy" decoding="async"
+            onerror="this.style.display='none';this.nextElementSibling.hidden=false">
+       <div class="fallback" hidden>絵が読み込めませんでした</div>`
+    : `<div class="fallback">絵がありません</div>`;
+
+  const r = state.reviews.get(w.id);
+  const 印 = [];
+  if (state.watchlist.has(w.id)) 印.push('<span class="h">♥</span>');
+  if (r?.['★']) 印.push(`<span class="s">★${r['★']}</span>`);
+  else if (r) 印.push('<span class="s">👁</span>');
+
+  return `<article class="card" data-id="${w.id}">
+    <div class="shot" style="background:${esc(w.色)}22">
+      ${img}
+      <span class="kbn ${esc(kbnLabel)}">${esc(kbnLabel)}</span>
+      <div class="svc">${pills.join('')}</div>
+      <div class="when${w.放送開始?.length === 10 ? '' : ' tbd'}">${esc(w.放送開始表示)}${w.形式==='MOVIE'?' 公開':''}</div>
+      ${印.length ? `<div class="mine">${印.join('')}</div>` : ''}
+      ${点 != null ? `<span class="score">${点}</span>` : ''}
+      ${w.予告編 ? `<button class="play" data-trailer="${w.id}" title="予告編を見る">▶</button>` : ''}
+    </div>
+    <div class="title">${esc(w.タイトル)}</div>
+    <div class="sub">${配信文}</div>
+    ${理由 ? `<div class="why">${esc(理由)}</div>` : ''}
+    ${state.棚 === '選:押した' ? 行動ボタン(w) : ''}
+  </article>`;
+}
+
+/**
+ * 一覧の終わり。★利用者が最後までスクロールして「で、何がしたかったんだっけ？」となった場所。
+ * 見終わったことを締めて、拾ったものを見せて、次の一手を出す。
+ */
+/** いま何で絞っているかを、そのまま日本語にする。 */
+function いまの条件(){
+  const 名 = 棚の一覧().find((t) => t.key === state.棚)?.名 ?? state.棚;
+  const 語 = [名];
+  if (state.watchable) 語.push('本当に観られるもの');
+  if (state.mine) 語.push('♥みたい・みた');
+  return 語.join(' × ');
+}
+
+function endBlock(件数){
+  const 押した = state.watchlist.size, 観た = state.reviews.size;
+  const 拾えた = 押した > 0;
+
+  // ★「見終わりました」とは書かない。作品を観終わった意味に読めてしまう（利用者の指摘・2026-08-31）
+  //   ここで言っているのは、一覧のおしまいに来たということだけ。
+  return `
+    <div class="cnt">ここが一覧のおわりです</div>
+    <div class="cnt">〈${esc(いまの条件())}〉で <b>${件数}作品</b></div>
+    ${拾えた
+      ? `<div class="cnt">これまでに押したのは
+           <span class="got">♥ ${押した}作品</span>${観た ? `　<span class="got">👁 ${観た}作品</span>` : ''}
+           <br><small style="color:var(--dim)">（この絞り込みの中だけではなく、全体の数です）</small></div>`
+      : `<div class="zero">まだ ♥ を1つも押していません。<br>
+           気になったポスターを押すと、<b>予告編</b>と<b>公式サイト</b>が開きます。<br>
+           そこで決めて <b>♥ みたい</b> を押すと、ここに溜まります。</div>`}
+    <div class="btns">
+      ${拾えた ? '<button class="primary" data-end="mine">♥ 押したものを見る</button>' : ''}
+      <button data-end="top">↑ 上に戻る</button>
+    </div>`;
+}
+
+/* ───────── おすすめ ─────────
+   ★機械は「利用者はこれを好き」と決めない。並べ替えと、理由を言うことだけをする。
+     理由の言えないものは出さない（score.mjs 側で落としている）。 */
+/** チェックした束と個別の言葉を、計算に渡せる形（[{種,名前}]）にほどく */
+function 選んだ言葉を集める(){
+  const out = [];
+  const 束を足す = (名, 向き) => {
+    const b = state.束.find((x) => x.名前 === 名); if (!b) return;
+    for (const t of b.タグ ?? []) out.push({ 種: 'タグ', 名前: t, 向き });
+    for (const g of b.ジャンル ?? []) out.push({ 種: 'ジャンル', 名前: g, 向き });
+  };
+  for (const 名 of state.選んだ束) 束を足す(名, 1);
+  for (const 名 of state.嫌いな束) 束を足す(名, -1);   // ★苦手もはっきり伝える
+  for (const k of state.選んだタグ) { const [種, ...r] = k.split(':'); out.push({ 種, 名前: r.join(':'), 向き: 1 }); }
+  for (const k of state.嫌いなタグ)  { const [種, ...r] = k.split(':'); out.push({ 種, 名前: r.join(':'), 向き: -1 }); }
+  return out;
+}
+
+function recomputeTaste(){
+  state.taste = buildTaste({
+    picks:     [...state.picks.values()],
+    reviews:   [...state.reviews.values()],
+    watchlist: [...state.watchlist.values()],
+    notForMe:  [...state.notForMe.values()],
+    選んだ言葉: 選んだ言葉を集める(),
+    byId:      state.byId,
+  });
+  save('taste');
+}
+
+function bandCard(w, 理由, 点){
+  const img = w.ポスター
+    ? `<img src="${esc(w.ポスター)}" alt="" loading="lazy" decoding="async"
+            onerror="this.style.display='none';this.nextElementSibling.hidden=false">
+       <div class="fallback" hidden>絵が読み込めませんでした</div>`
+    : `<div class="fallback">絵がありません</div>`;
+  const 配信 = w.配信.契約中[0];
+  const 印 = w.配信.劇場 ? '<span class="pill gek">劇場</span>'
+           : 配信 ? `<span class="pill" style="background:${esc(配信.色)}">${esc(配信.略)}</span>`
+           : '';
+  return `<article class="bcard card" data-id="${w.id}">
+    <div class="shot">
+      ${img}
+      ${点 != null ? `<span class="score">${点}</span>` : ''}
+      ${印 ? `<div class="svc">${印}</div>` : ''}
+      <div class="when${w.放送開始?.length === 10 ? '' : ' tbd'}">${esc(w.放送開始表示)}</div>
+    </div>
+    <div class="bt">${esc(w.タイトル)}</div>
+    <div class="why">${esc(理由)}</div>
+  </article>`;
+}
+
+// ⚠️ 2026-09-01 使わなくなった。棚に置き換えた（利用者の指摘）
+//    消さずに残してあるのは、棚の中身を組む考え方がここに書いてあるため。
+function renderBands_旧(){
+  const el = document.getElementById('bands');
+  const 押した = new Set([...state.watchlist.keys(), ...state.reviews.keys()]);
+  const 出さない = new Set([...押した, ...state.notForMe.keys()]);   // ★興味ないは帯に出さない
+  const out = [];
+
+  /* 🎬 観に行ける映画 ─ ★利用者の本当の狙い（2026-08-31）
+     「わたしの好みを教えて、現在上映中、上映予定のおすすめを表示して欲しいからです」
+     好みを学ぶこと自体が目的ではなかった。★観に行ける映画を出すためだった。 */
+  /** 帯を1つ組み立てる。★中身を state.帯 に控えて「この帯を続けて観る」に使う */
+  const 帯を出す = (印, 見出し, 説明, 並び) => {
+    if (!並び.length) return;
+    state.帯[印] = 並び.map((r) => r.w);
+    (state.帯情報 ??= {})[印] = 並び;
+    const 予告編あり = 並び.filter((r) => r.w.予告編).length;
+    out.push(`<section class="band ${印}">
+      <h2>${見出し}<small>${説明}</small>
+        ${予告編あり ? `<button class="bandplay" data-band="${印}">▶ 続けて観る<small style="opacity:.8">（${予告編あり}）</small></button>` : ''}
+      </h2>
+      <div class="row">${並び.slice(0, 15).map((r) => bandCard(r.w, r.理由, r.点)).join('')}</div>
+    </section>`);
+  };
+
+  const 映画の帯 = (区分, 見出し, 印, 説明) => {
+    if (tasteは空(state.taste)) return;
+    const 候補 = state.works.filter((w) => w.形式 === 'MOVIE' && w.区分 === 区分);
+    const 上位 = rankWorks(候補, state.taste,
+      { lexicon: state.lexicon, 除外: 出さない, 人気の扱い: state.人気の扱い })
+      .map((r) => ({ ...r, 理由: [知られ具合(r.人気の位置), r.理由].filter(Boolean).join('　') }));
+    帯を出す(印, 見出し, `${候補.length}本から・好みの順${説明 ? `／${説明}` : ''}`, 上位);
+  };
+  /* ⚠️ 2026-08-31 利用者の指摘で「🎬 いま観に行けるかもしれない映画」を外した。
+       AniListは「上映終了」を持っていないので、上映中かを確かめられなかった。
+       私は「確かめていません」と正直に書いたが、★それは言い訳だった★
+
+       利用者の指摘
+
+       → 確かめられるまで、出さない。
+         確かめる手段は R2 の解禁ウォッチャー（19館の映画館サイトを実際に見に行く）にある。
+         ♥を押した映画だけ確かめに行く形で復活させる予定。 */
+  映画の帯('新番組', '🍿 これから公開される映画', 'soon', '公開日が決まっているものだけ');
+
+  /* 🆕 前例のない作品 ─ ★利用者の指摘
+     ★これは「おすすめ」ではない。好みと照らさない。
+       世間にその言葉がほとんど無いことだけを見る。
+       推薦は過去に似たものしか出せないので、原理的に「観たことないもの」を出せないため。 */
+  if (state.seeds.length) {
+    state.世間 ??= 世間の数を測る(state.seeds);
+    const 珍 = 前例のない(
+      state.works.filter((w) => ['新番組', '放送中', '最近公開'].includes(w.区分)),
+      state.世間, { lexicon: state.lexicon, 除外: 出さない, 人気の扱い: state.人気の扱い }
+    ).slice(0, 60);   // 表示は15、続けて観るは60まで
+    帯を出す('new', '🆕 前衛的な作品', '好みは見ていません。世間にほとんど無い要素を持つものだけ', 珍);
+  }
+
+  // 🔥 あの続編です ─ 学習なしで、いちばんペインに効く枠
+  const 続編 = 続編を探す(state.works, [...押した]).filter((r) => !state.notForMe.has(r.w.id));
+  帯を出す('seq', '🔥 あの続編です', `${続編.length}作品`,
+    続編.map((r) => ({ w: r.w, 理由: r.理由, 点: null })));
+
+  // ⭐ 好みに近い新作
+  if (!tasteは空(state.taste)) {
+    const 上位 = rankWorks(
+      state.works.filter((w) => ['新番組', '放送中', '最近公開'].includes(w.区分)),
+      state.taste, { lexicon: state.lexicon, 除外: 出さない, 人気の扱い: state.人気の扱い }
+    ).slice(0, 60);   // 表示は15、続けて観るは60まで
+    if (上位.length) {
+      const m = state.taste.材料;
+      帯を出す('rec', '⭐ 好みに近い作品',
+        `好みに選んだ${m.タネ}作品・★${m.評価}作品・♥${m.みたい}作品${m.興味ない ? `・🚫${m.興味ない}作品` : ''}から${state.人気の扱い === 'マイナーを上に' ? '／マイナーなものを上に' : ''}`,
+        上位.map((r) => ({ ...r, 理由: [知られ具合(r.人気の位置), r.理由].filter(Boolean).join('　') })));
+    }
+  } else if (!押した.size) {
+    // まだ何も教わっていない。★説明せずに、押せるものを1つだけ出す
+    out.push(`<div class="invite">
+      <b>🎲 好きだったアニメを、いくつか押してください</b>
+      <p>この10年の人気作を30作品ならべます。知らないものは飛ばして大丈夫です。<br>
+         押すほど、上に「好みに近い作品」の帯が出るようになります。</p>
+      <button id="invite-go">好みを教える</button>
+    </div>`);
+  }
+
+  el.innerHTML = out.join('');
+  el.querySelector('#invite-go')?.addEventListener('click', openTeach);
+}
+
+/* ───────── 好みを教える（ポスターをタップ）─────────
+   利用者の案をそのまま採用。★説明しない。絵を並べるだけ。
+   ★数える単位は「作品」。「枚」はポスターを並べる側の目線だった（利用者の指摘・2026-08-31） */
+const ひと山 = 30;
+let 出している = [];
+
+/** まだ出していないものから、ランダムに引く。★引いたぶんだけを返す（足すために使う） */
+function 引く(n = ひと山){
+  const 済 = new Set(出している.map((s) => s.id));
+  const 残り = state.seeds.filter((s) => !済.has(s.id));
+  for (let i = 残り.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [残り[i], 残り[j]] = [残り[j], 残り[i]];
+  }
+  const 新規 = 残り.slice(0, n);
+  出している = [...出している, ...新規];
+  return 新規;
+}
+
+function tcardHTML(s){
+  return `<div class="tcard" data-sid="${s.id}" aria-pressed="${state.picks.has(s.id)}">
+    <img src="${esc(s.ポスター)}" alt="" loading="lazy" decoding="async">
+    <span class="tick">✓</span>
+    <div class="yr">${s.年}</div>
+  </div>`;
+}
+
+function ボタンを直す(){
+  const done = document.getElementById('t-done');
+  if (done) done.textContent = state.picks.size ? `${state.picks.size}作品 選んで完了` : '選ばずに閉じる';
+  const more = document.getElementById('t-more');
+  if (more){
+    const 残り = state.seeds.length - 出している.length;
+    more.disabled = 残り <= 0;
+    more.textContent = 残り <= 0 ? `これで全部です（${state.seeds.length}作品）`
+                                 : `もう${Math.min(ひと山, 残り)}作品みる`;
+  }
+}
+
+/**
+ * ★もう30作品みる：画面を作り直さず、下に足すだけ。
+ *   作り直すとスクロールが先頭に戻ってしまう（予告編が消えたのと同じ原因）。
+ */
+function もっと見る(){
+  const 新規 = 引く();
+  if (!新規.length) return ボタンを直す();
+  const grid = document.getElementById('tgrid');
+  const 直前 = grid.lastElementChild;
+  grid.insertAdjacentHTML('beforeend', 新規.map(tcardHTML).join(''));
+  // 新しい山の先頭へ寄せる（いま見ていた場所からそのまま続く）
+  (直前?.nextElementSibling ?? grid.firstElementChild)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  ボタンを直す();
+}
+
+function paintTeach(){
+  const el = document.getElementById('teach');
+  el.innerHTML = `
+  <div class="teach">
+    <header>
+      <h2>🎲 好きだったアニメを押してください</h2>
+      <p>この10年の人気作。知らないものは飛ばしてOK。</p>
+    </header>
+    <div class="tgrid" id="tgrid">${出している.map(tcardHTML).join('')}</div>
+    <div class="tbar">
+      <button id="t-more"></button>
+      <button class="primary" id="t-done"></button>
+    </div>
+  </div>`;
+  document.body.classList.add('locked');
+  ボタンを直す();
+
+  el.querySelector('#tgrid').addEventListener('click', (e) => {
+    const c = e.target.closest('.tcard'); if (!c) return;
+    const id = Number(c.dataset.sid);
+    if (state.picks.has(id)) state.picks.delete(id);
+    else state.picks.set(id, state.seeds.find((s) => s.id === id));
+    c.setAttribute('aria-pressed', String(state.picks.has(id)));
+    ボタンを直す();
+    save('picks');
+  });
+  el.querySelector('#t-more').addEventListener('click', もっと見る);
+  el.querySelector('#t-done').addEventListener('click', closeTeach);
+}
+
+function openTeach(){
+  if (!state.seeds.length){
+    alert('まだタネがありません。ターミナルで node apps/anime-catalog/src/seeds.mjs を動かしてください');
+    return;
+  }
+  if (!出している.length) 引く();
+  paintTeach();
+}
+
+function closeTeach(){
+  document.getElementById('teach').innerHTML = '';
+  document.body.classList.remove('locked');
+  recomputeTaste();
+  render();
+  scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/** ヘッダーの予告編タイムに、残り本数を出す。
+ *  ★帯の「▶続けて観る」と役割が違うことを、押す前に分かるようにする
+ *   （利用者の指摘＝押すまで違いが見えなかった） */
+function 予告編タイムのボタンを直す(){
+  const b = document.getElementById('f-pvtime'); if (!b) return;
+  const 全部 = state.works.filter((w) => w.区分 === '新番組' && w.予告編);
+  const 残り = 全部.filter((w) => !state.pvSeen.has(w.id) && !state.notForMe.has(w.id)).length;
+  // ★開いたときの表示（16 / 97）と同じ数字にする ─ 利用者の指定（2026-09-01）
+  //   「次に何本目から始まるか」なので、見送りずみ + 1
+  const いま = Math.min(全部.length - 残り + 1, 全部.length);
+  b.textContent = 残り
+    ? `🎞 予告編タイム（${いま}/${全部.length}）`
+    : `🎞 予告編タイム（${全部.length}/${全部.length} ぜんぶ観ました）`;
+}
+
+/**
+ * ♥棚のカードに出す行動ボタン。★「観る」と書けるのは、本当に観られるときだけ。
+ *   劇場アニメは配信ではなく劇場なので、公式サイトへ送る。
+ */
+/**
+ * ♥に入れた作品が、いまどの状態か。★これが「埋もれ」を壊す軸。
+ *   通知は「まだ始まっていないもの」にしか効かない。
+ *   もう始まっているものは永遠に鳴らないので、画面のいちばん上に出す。
+ */
+function 押したものの状態(w){
+  if (state.reviews.has(w.id)) return '観た';
+  const d = w.放送開始 ?? '';
+  const 今日 = today();
+  if (d.length !== 10) return '未定';
+  if (d <= 今日) return w.配信.契約中.length ? 'いま観られる' : (w.配信.劇場 ? '公開ずみ' : '始まっている');
+  const あと = Math.round((new Date(d + 'T12:00:00+09:00') - new Date(今日 + 'T12:00:00+09:00')) / 86400000);
+  return あと <= 7 ? 'もうすぐ' : '待ち';
+}
+
+const 状態のならび = [
+  { key:'いま観られる', 名:'🔴 いま観られます', 印:'now',   note:'今日、押せば観られます' },
+  { key:'もうすぐ',     名:'🟡 もうすぐです',   印:'soon2', note:'7日以内に始まります' },
+  { key:'始まっている', 名:'🔵 もう始まっています', 印:'now', note:'配信はまだ分かっていません' },
+  { key:'公開ずみ',     名:'🎬 もう公開されています', 印:'now', note:'劇場で確かめてください' },
+  { key:'待ち',         名:'⚪ 待っているもの', 印:'wait',  note:'まだ先です' },
+  { key:'未定',         名:'❓ 予定が未定',     印:'wait',  note:'日付が決まったらLINEで知らせます' },
+  { key:'観た',         名:'👁 観たもの',       印:'seen2', note:'★と感想を残せます' },
+];
+
+function 行動ボタン(w){
+  const 観た = state.reviews.has(w.id);
+  const 出 = [];
+
+  if (w.配信.劇場) {
+    if (w.公式サイト) 出.push(`<a class="gek" href="${esc(w.公式サイト)}" target="_blank" rel="noopener" data-stop>🎬 劇場の公式サイト</a>`);
+    出.push(`<span class="when2">${esc(w.放送開始表示)} 公開</span>`);
+  } else if (w.配信.契約中.length) {
+    for (const sv of w.配信.契約中.slice(0, 2))
+      出.push(`<a class="go" href="${esc(sv.url)}" target="_blank" rel="noopener" data-stop>▶ ${esc(sv.名前)}</a>`);
+  } else if (w.配信.未加入.length) {
+    出.push(`<a href="${esc(w.配信.未加入[0].url)}" target="_blank" rel="noopener" data-stop>${esc(w.配信.未加入[0].表示)}</a>`);
+  } else if (w.公式サイト) {
+    出.push(`<a class="ref" href="${esc(w.公式サイト)}" target="_blank" rel="noopener" data-stop>🌐 公式サイト</a>`);
+  }
+
+  // まだ始まっていないものは「いつから」を出す（観るボタンより先に知りたい）
+  if (w.区分 === '新番組' && !w.配信.劇場)
+    出.unshift(`<span class="when2">${esc(w.放送開始表示)} から</span>`);
+
+  出.push(`<button class="seen" data-seen="${w.id}" aria-pressed="${観た}" data-stop>${観た ? '👁 みた' : '👁 みたら押す'}</button>`);
+  return `<div class="acts2">${出.join('')}</div>`;
+}
+
+function render(){
+  renderShelves();            // ★帯はやめた。棚を1つ選ぶと、その中身が壁いっぱいに出る
+  予告編タイムのボタンを直す();
+  const list = visible();
+  const wall = document.getElementById('wall');
+  const empty = document.getElementById('empty');
+  const end = document.getElementById('end');
+
+  const 押した = state.watchlist.size, 観た = state.reviews.size;
+  document.getElementById('meta').innerHTML =
+    `${list.length}作品 / 全${state.works.length}作品`
+    + (押した || 観た ? `<br>♥${押した} 👁${観た}` : '')
+    + `<br>更新 ${esc(state.更新)}`;
+
+  if (!list.length){
+    wall.hidden = true; end.hidden = true; empty.hidden = false;
+    empty.innerHTML = state.mine
+      ? 'まだ「みたい」も「みた」も押していません。<br>ポスターを押すと、詳しい画面が開きます。'
+      : `この棚には、いま出せる作品がありませんでした。<br>ほかの棚を選んでみてください。`;
+    return;
+  }
+  empty.hidden = true; wall.hidden = false;
+  wall.classList.toggle('bare', state.bare);
+
+  if (state.棚 === '選:押した' && !state.bare) {
+    // ★状態ごとに区切る。今日できることが、待ちに紛れないように
+    const 箱 = {};
+    for (const r of list) (箱[押したものの状態(r.w)] ??= []).push(r);
+    wall.innerHTML = 状態のならび.flatMap((g) => {
+      const v = 箱[g.key]; if (!v?.length) return [];
+      return [`<div class="grouphead ${g.印}">${g.名}<small>${v.length}作品　${g.note}</small></div>`,
+              ...v.map(card)];
+    }).join('');
+  } else {
+    wall.innerHTML = list.map(card).join('');
+  }
+  end.hidden = false;
+  end.innerHTML = endBlock(list.length);
+}
+
+/* ───────── 個票（MOVIE WALKER のあの画面） ───────── */
+function openDetail(id, { 予告編から = false } = {}){
+  const w = state.byId.get(id);
+  if (!w) return;
+
+  const wl = state.watchlist.has(id);
+  const rv = state.reviews.get(id);
+  const 星 = rv?.['★'] ?? 0;
+
+  // 背景バナーは 42% しか無い。無いときはポスターをぼかして使う
+  const heroImg = w.背景
+    ? `<div class="hero-bg"><img src="${esc(w.背景)}" alt=""></div>`
+    : w.ポスター ? `<div class="hero-bg blur"><img src="${esc(w.ポスター)}" alt=""></div>` : '';
+
+  // 赤い大ボタン。★ボタンの言葉は、リンク先で本当にできることだけを書く。
+  //   「観る」と書いていいのは、動画/再生リストが確かにあるときだけ（利用者の指摘・2026-08-31）
+  const 観る = w.配信.契約中[0];
+  const big =
+      w.配信.劇場 && w.公式サイト
+        ? `<a class="bigbtn official" href="${esc(w.公式サイト)}" target="_blank" rel="noopener">🎬 ${esc(w.配信.劇場の言葉)}　公式サイトへ</a>`
+    : 観る
+        ? `<a class="bigbtn" href="${esc(観る.url)}" target="_blank" rel="noopener">▶ ${esc(観る.表示)}</a>`
+    : w.配信.未加入[0]
+        ? `<a class="bigbtn official" href="${esc(w.配信.未加入[0].url)}" target="_blank" rel="noopener">${esc(w.配信.未加入[0].表示)}</a>`
+    : w.公式サイト
+        ? `<a class="bigbtn official" href="${esc(w.公式サイト)}" target="_blank" rel="noopener">🌐 公式サイトを開く</a>`
+    : w.配信.参考[0]
+        ? `<a class="bigbtn official" href="${esc(w.配信.参考[0].url)}" target="_blank" rel="noopener">${esc(w.配信.参考[0].表示)}</a>`
+    : `<div class="bigbtn unknown">${esc(w.配信.分からないときの言葉)}</div>`;
+
+  const svcList = [
+    ...w.配信.契約中.map(s => `<a class="own" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.表示)}</a>`),
+    ...w.配信.未加入.map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.表示)}</a>`),
+    ...w.配信.参考.map(s => `<a class="ref" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.表示)}</a>`),
+  ];
+  if (!svcList.length) svcList.push(`<span style="color:#c9a86a">${esc(w.配信.分からないときの言葉)}</span>`);
+  if (w.配信.参考.length) svcList.push(`<span style="color:#8b8b98;border:0;background:none">※ ${esc(w.配信.参考の説明)}</span>`);
+
+  const dock =
+      w.配信.劇場        ? `<span class="gek">🎬 ${esc(w.配信.劇場の言葉)}</span>`
+    : w.配信.契約中.length ? `<span class="own">▶ ${w.配信.契約中.map(s=>esc(s.表示)).join('　')}</span>`
+    : w.配信.未加入.length ? `<span class="no">${w.配信.未加入.map(s=>esc(s.表示)).join('　')}</span>`
+    : w.配信.参考.length   ? `<span class="unk">${esc(w.配信.参考[0].表示)}</span>`
+    : `<span class="unk">${esc(w.配信.分からないときの言葉)}</span>`;
+
+  const 話数 = w.話数 ? `全${w.話数}話` : null;
+  const 行 = [w.形式表示, 話数].filter(Boolean).join(' ｜ ');
+
+  document.getElementById('modal').innerHTML = `
+  <div class="veil" data-close></div>
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="hero">
+      ${heroImg}
+      <button class="close" data-close aria-label="閉じる">←</button>
+      <div class="hero-inner">
+        <div class="hero-poster">${w.ポスター ? `<img src="${esc(w.ポスター)}" alt="">` : ''}</div>
+        <div class="hero-text">
+          <h2>${esc(w.タイトル)}</h2>
+          <div class="hero-line"><b>${esc(w.放送開始表示)}</b> ${esc(w.日付ラベル)}</div>
+          <div class="hero-line">${esc(行)}</div>
+          <div id="badge-slot">${wl ? '<div class="badge-mitai">✅ みたい登録ずみ</div>' : ''}</div>
+          <div class="hero-stats" id="hero-stats">
+            <span class="heart">♥ ${(w.人気|0).toLocaleString('ja-JP')}</span>
+            ${星 ? `<span class="mystar">${'★'.repeat(星)}${'☆'.repeat(5-星)} ${星}.0</span>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="acts">
+      <button id="b-mitai" aria-pressed="${wl}"><span class="ico">♥</span>みたい</button>
+      <button id="b-mita" class="watch" aria-pressed="${!!rv}"><span class="ico">👁</span>みた</button>
+      <button id="b-pv" ${w.予告編 ? '' : 'disabled'}><span class="ico">▶</span>${w.予告編 ? '予告編' : '予告編なし'}</button>
+    </div>
+
+    <div id="pv-slot"></div>
+    ${big}
+
+    <div class="review" id="review" ${rv ? '' : 'hidden'}>
+      <h3>この作品の記録</h3>
+      <div class="stars" id="stars">
+        ${[1,2,3,4,5].map(n => `<button data-n="${n}" class="${n <= 星 ? 'on' : ''}">${n <= 星 ? '★' : '☆'}</button>`).join('')}
+      </div>
+      <label for="r-kanso">感想（ひとこと）</label>
+      <input id="r-kanso" maxlength="120" placeholder="ひとことで" value="${esc(rv?.['感想'] ?? '')}">
+      <label for="r-review">レビュー（長くてもOK）</label>
+      <textarea id="r-review" placeholder="ある友人に話すときの材料。長さは自由です">${esc(rv?.['レビュー'] ?? '')}</textarea>
+      <div class="saved" id="saved"></div>
+    </div>
+
+    <button class="nope" id="b-nope" aria-pressed="${state.notForMe.has(w.id)}">
+      ${state.notForMe.has(w.id) ? '🚫 興味ないと伝えました（もう一度押すと取り消し）' : '🚫 これは興味ない（おすすめに出さなくなります）'}
+    </button>
+
+    <dl class="info">
+      ${w.ジャンル表示?.length ? `<dt>ジャンル</dt><dd>${w.ジャンル表示.map(esc).join('・')}</dd>` : ''}
+      ${w.原作表示 ? `<dt>原作</dt><dd>${esc(w.原作表示)}</dd>` : ''}
+      ${w.スタジオ?.length ? `<dt>制作</dt><dd>${w.スタジオ.map(esc).join('・')}</dd>` : ''}
+      ${w.主要スタッフ?.length ? `<dt>スタッフ</dt><dd>${w.主要スタッフ.slice(0,5).map(s=>esc(s.名前)).join('・')}</dd>` : ''}
+      <dt>配信</dt><dd class="svclist">${svcList.join('')}</dd>
+      <dd class="links">
+        ${w.公式サイト ? `<a href="${esc(w.公式サイト)}" target="_blank" rel="noopener">🌐 公式サイト</a>` : ''}
+        ${w.予告編 ? `<a href="https://www.youtube.com/watch?v=${esc(w.予告編)}" target="_blank" rel="noopener">▶ YouTubeで開く</a>` : ''}
+        <a href="${esc(w.anilist)}" target="_blank" rel="noopener">AniList</a>
+      </dd>
+    </dl>
+
+    <div class="dock">${dock}</div>
+  </div>`;
+
+  document.body.classList.add('locked');
+  wireDetail(w);
+  if (予告編から && w.予告編) document.getElementById('b-pv').click();
+}
+
+/**
+ * 個票を「作り直さずに」書き換える。
+ * ★ここは一度まちがえた場所：みたいを押すたびに openDetail() で全部作り直していたため、
+ *   予告編を見ている最中に押すと iframe ごと消えて動画が止まっていた。
+ *   押したところだけを書き換えれば、動画は流れたまま。
+ */
+function refreshDetail(w){
+  const wl = state.watchlist.has(w.id);
+  const rv = state.reviews.get(w.id);
+  const 星 = rv?.['★'] ?? 0;
+
+  document.getElementById('b-mitai').setAttribute('aria-pressed', String(wl));
+  document.getElementById('b-mita').setAttribute('aria-pressed', String(!!rv));
+  document.getElementById('badge-slot').innerHTML =
+    wl ? '<div class="badge-mitai">✅ みたい登録ずみ</div>' : '';
+
+  const hs = document.getElementById('hero-stats');
+  hs.querySelector('.mystar')?.remove();
+  if (星){
+    const s = document.createElement('span');
+    s.className = 'mystar';
+    s.textContent = `${'★'.repeat(星)}${'☆'.repeat(5-星)} ${星}.0`;
+    hs.appendChild(s);
+  }
+
+  const rev = document.getElementById('review');
+  rev.hidden = !rv;
+  for (const b of rev.querySelectorAll('#stars button')){
+    const n = Number(b.dataset.n);
+    b.classList.toggle('on', n <= 星);
+    b.textContent = n <= 星 ? '★' : '☆';
+  }
+
+  // 入力欄は、打鍵中のものに書き戻さない（カーソルが飛ぶため）
+  const k = document.getElementById('r-kanso');
+  const t = document.getElementById('r-review');
+  if (!rv){ k.value = ''; t.value = ''; }
+  else {
+    if (document.activeElement !== k) k.value = rv['感想'] ?? '';
+    if (document.activeElement !== t) t.value = rv['レビュー'] ?? '';
+  }
+}
+
+function closeDetail(){
+  document.getElementById('modal').innerHTML = '';
+  document.body.classList.remove('locked');
+  recomputeTaste();   // 押した／★を付けたぶん、好みが動く
+  render();           // 壁に押した印を、上の帯におすすめを反映する
+}
+
+function wireDetail(w){
+  const modal = document.getElementById('modal');
+  modal.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', closeDetail));
+
+  // ♥ みたい
+  const bM = document.getElementById('b-mitai');
+  bM.addEventListener('click', () => {
+    if (state.watchlist.has(w.id)) state.watchlist.delete(w.id);
+    else state.watchlist.set(w.id, {
+      id:w.id, タイトル:w.タイトル, ポスター:w.ポスター,
+      放送開始:w.放送開始, 区分:w.区分, 押した日: today(),
+    });
+    save('watchlist');
+    refreshDetail(w);   // ★作り直さない。予告編を見ている最中でも動画が止まらない
+  });
+
+  // 👁 みた → 押すと記録欄が開く
+  const bW = document.getElementById('b-mita');
+  bW.addEventListener('click', () => {
+    if (state.reviews.has(w.id)) {
+      state.reviews.delete(w.id);
+    } else {
+      state.reviews.set(w.id, {
+        id:w.id, タイトル:w.タイトル, みた日: today(), '★':0, 感想:'', レビュー:'',
+      });
+    }
+    save('reviews');
+    refreshDetail(w);
+  });
+
+  // 🚫 興味ない ─ 観なくても「違う」と言える。★機械は勝手に判定しない。利用者が押す
+  document.getElementById('b-nope')?.addEventListener('click', () => {
+    if (state.notForMe.has(w.id)) state.notForMe.delete(w.id);
+    else state.notForMe.set(w.id, { id:w.id, タイトル:w.タイトル, 押した日: today() });
+    save('notForMe');
+    const b = document.getElementById('b-nope');
+    const on = state.notForMe.has(w.id);
+    b.setAttribute('aria-pressed', String(on));
+    b.textContent = on ? '🚫 興味ないと伝えました（もう一度押すと取り消し）'
+                       : '🚫 これは興味ない（おすすめに出さなくなります）';
+  });
+
+  // ▶ 予告編（押されたときだけ読み込む。248本ぶんを先に読ませない）
+  const bP = document.getElementById('b-pv');
+  if (w.予告編) bP.addEventListener('click', () => {
+    const slot = document.getElementById('pv-slot');
+    if (slot.innerHTML) { slot.innerHTML = ''; bP.setAttribute('aria-pressed','false'); return; }
+    slot.innerHTML = `<div class="trailer"><iframe
+      src="https://www.youtube.com/embed/${esc(w.予告編)}?rel=0&autoplay=1"
+      allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>`;
+    bP.setAttribute('aria-pressed','true');
+    // ★動画ではなくボタン列を上端に寄せる。動画はその真下なので、
+    //   「観ながら みたい を押す」ができる（動画を中央に寄せるとボタンが画面外へ出る）
+    document.querySelector('.acts').scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+
+  // ★ 点数
+  const rv = () => state.reviews.get(w.id);
+  document.getElementById('stars')?.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const n = Number(b.dataset.n);
+    const r = rv(); if (!r) return;
+    r['★'] = (r['★'] === n) ? 0 : n;      // 同じ星をもう一度押すと取り消し
+    save('reviews');
+    refreshDetail(w);
+  });
+
+  // 感想・レビュー
+  const bind = (elId, key) => {
+    const el = document.getElementById(elId); if (!el) return;
+    el.addEventListener('input', () => { const r = rv(); if (!r) return; r[key] = el.value; save('reviews'); });
+  };
+  bind('r-kanso','感想');
+  bind('r-review','レビュー');
+}
+
+/* ───────── 📚 棚 ─────────
+   ★利用者の指摘
+     「3行にわたるカテゴリー分けされたポスターと、その下に大きめのポスターがタイル状に
+       敷き詰められていて、なにが主役かわからなくなってきました」
+
+   芯は『ポスターの壁が主役。好みは順番に使い、絞り込みには使わない』。
+   → 帯（横スクロールの3列）をやめる。棚を1つ選ぶと、その中身が壁いっぱいに出る。
+     入口は1つ。主役はいつも壁。 */
+
+function 棚の一覧(){
+  const 内容 = state.束.map((b) => ({ key: '束:' + b.名前, 名: b.名前, 組: '内容' }));
+  return [
+    // ★2026-09-01 利用者の指摘
+    { key: '選:押した', 名: '♥ 押したもの', 組: '' },
+    { key: 'ぜんぶ', 名: 'ぜんぶ', 組: '' },
+    { key: '時期:新番組', 名: '🆕 新番組', 組: 'いつの' },
+    { key: '時期:放送中', 名: '📺 放送中', 組: 'いつの' },
+    { key: '時期:最近公開', 名: '🎬 最近公開', 組: 'いつの' },
+    { key: '時期:劇場', 名: '🍿 劇場アニメ', 組: 'いつの' },
+    { key: '選:これから公開の映画', 名: '🍿 これから公開の映画', 組: 'えらぶ' },
+    { key: '選:好みに近い', 名: '⭐ 好みに近い', 組: 'えらぶ' },
+    { key: '選:前衛的', 名: '🆕 前衛的', 組: 'えらぶ' },
+    { key: '選:あの続編', 名: '🔥 あの続編', 組: 'えらぶ' },
+    ...内容,
+  ];
+}
+
+/** その棚の中身。[{w, 点, 理由}] を返す。点があれば「棚の順」で並ぶ */
+function 棚の中身(key){
+  const いま = state.works.filter((w) => ['新番組', '放送中', '最近公開'].includes(w.区分));
+  // ★2026-09-01 利用者の指摘
+  //   → 押したものは消さない。消すのは「🚫 興味ない」だけ。押した印（♥）で見分ける
+  const 出さない = new Set(state.notForMe.keys());
+  const 素 = (list) => list.map((w) => ({ w, 点: null, 理由: null }));
+  const 好み順 = (list) => rankWorks(list, state.taste,
+      { lexicon: state.lexicon, 除外: 出さない, 人気の扱い: state.人気の扱い })
+    .map((r) => ({ w: r.w, 点: r.点, 理由: [知られ具合(r.人気の位置), r.理由].filter(Boolean).join('　') }));
+
+  if (key === 'ぜんぶ') return 素(いま);
+
+  if (key.startsWith('時期:')) {
+    const v = key.slice(3);
+    if (v === '劇場') return 素(いま.filter((w) => w.形式 === 'MOVIE'));
+    return 素(いま.filter((w) => w.区分 === v));
+  }
+
+  if (key === '選:押した') {
+    // ★ここが拠点。押した順（新しいものが上）。放送日が近いものを先に見たいので日付順も選べる
+    const 押 = state.works.filter((w) => state.watchlist.has(w.id) || state.reviews.has(w.id));
+    const 日 = (w) => state.watchlist.get(w.id)?.押した日 ?? state.reviews.get(w.id)?.みた日 ?? '';
+    return 押.sort((a, b) => (日(b) < 日(a) ? -1 : 1)).map((w) => ({ w, 点: null, 理由: null }));
+  }
+
+  if (key === '選:あの続編')
+    // ★好みに選んだ作品も種にする（161作品）。シリーズを遡って先祖まで見る
+    return 続編を探す(state.works,
+        [...state.watchlist.keys(), ...state.reviews.keys(), ...state.picks.keys()], state.lineage)
+      .filter((r) => !state.notForMe.has(r.w.id) && !state.watchlist.has(r.w.id))
+      .map((r) => ({ w: r.w, 点: null, 理由: r.理由 }));
+
+  if (key === '選:前衛的') {
+    if (!state.seeds.length) return [];
+    state.世間 ??= 世間の数を測る(state.seeds);
+    return 前例のない(いま, state.世間,
+      { lexicon: state.lexicon, 除外: 出さない, 人気の扱い: state.人気の扱い });
+  }
+
+  if (key === '選:これから公開の映画')
+    return 好み順(state.works.filter((w) => w.形式 === 'MOVIE' && w.区分 === '新番組')).slice(0, 60);
+
+  // ★棚は「選ばれたもの」。全部を並べ替えただけでは棚にならない（341/365になっていた）
+  if (key === '選:好みに近い') return 好み順(いま).slice(0, 60);
+
+  if (key.startsWith('束:')) {
+    const b = state.束.find((x) => x.名前 === key.slice(2));
+    if (!b) return [];
+    const ts = new Set(b.タグ ?? []), gs = new Set(b.ジャンル ?? []);
+    const 当たる = いま.filter((w) =>
+      (w.タグ ?? []).some((x) => x.重み >= 60 && ts.has(x.名前)) || (w.ジャンル ?? []).some((g) => gs.has(g)));
+    // 束の棚は、好みが分かっていれば好みの順。分からなければそのまま
+    return tasteは空(state.taste) ? 素(当たる) : 好み順(当たる).slice(0, 80);
+  }
+  return 素(いま);
+}
+
+function renderShelves(){
+  const el = document.getElementById('shelves');
+  let 前の組 = null;
+  el.innerHTML = 棚の一覧().map((t) => {
+    const 区切り = t.組 && t.組 !== 前の組 ? `<span class="shelf grp">${esc(t.組)}</span>` : '';
+    前の組 = t.組;
+    const 選 = state.棚 === t.key;
+    const sp = t.組 === 'えらぶ' ? ' sp' : '';
+    return `${区切り}<button class="shelf${sp}" data-k="${esc(t.key)}" aria-pressed="${選}">${esc(t.名)}</button>`;
+  }).join('');
+  const 選 = 棚の一覧().find((t) => t.key === state.棚);
+  const b = state.棚.startsWith('束:') ? state.束.find((x) => x.名前 === state.棚.slice(2)) : null;
+  document.getElementById('shelfnote').innerHTML =
+    b ? `${esc((b.由来 ?? '').split('。')[0])}` :
+    state.棚 === '選:前衛的' ? '好みは見ていません。世間にほとんど無い要素を持つものだけ' :
+    state.棚 === '選:好みに近い' ? `好みに選んだ${state.picks.size}作品・★${state.reviews.size}作品・♥${state.watchlist.size}作品から` :
+    state.棚 === '選:これから公開の映画' ? '公開日が決まっている映画だけ・好みの順' : '';
+}
+
+/* ───────── 🎞 予告編タイム ─────────
+   利用者の指定（2026-08-31）：
+     「実際の映画館のように1ヶ月〜半年後に公開決定されたトレーラーが上映されている。
+       サイトでも、これから上映・放送されるトレーラーを次々に開いてもらえると最高。
+       さらに、自分の好みに近い作品から開くことができたら、さらに最高」
+   ★おすすめは「探す」ではなく「流す順番」だけを決める。出会いそのものは奪わない。 */
+const pv = { list: [], i: 0, player: null, 並び: '', 全体: 0, 見送りずみ: 0, 源: null };
+
+/** YouTube の再生終了を受け取るために、公式のプレーヤーAPIを読み込む。 */
+function YouTubeAPIを用意する(){
+  if (window.YT?.Player) return Promise.resolve();
+  if (window.__ytLoading) return window.__ytLoading;
+  window.__ytLoading = new Promise((res) => {
+    window.onYouTubeIframeAPIReady = res;
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+  });
+  return window.__ytLoading;
+}
+
+/**
+ * 流す順番を決める。★これから公開・放送されるもので、予告編があるものだけ。
+ * ★見送ったものは出さない（利用者の指摘2026-08-31）
+ */
+function 順番をつくる(){
+  // ★帯から呼ばれたときは、その帯の並びをそのまま使う（利用者の指定・2026-08-31）
+  //   「これから公開される映画からトレーラーを再生したら、
+  //     これから公開される映画のトレーラーを連続で再生することは可能ですか？」
+  if (pv.源) {
+    const 一覧 = pv.源.作品.filter((w) => w.予告編);
+    pv.全体 = 一覧.length; pv.見送りずみ = 0; pv.並び = pv.源.名前;
+    pv.list = 一覧.map((w) => ({ w, 点: null, 理由: null, 人気の位置: null }));
+    // 帯の理由をそのまま持ち込む（せっかく出しているので）
+    for (const r of pv.list) {
+      const 元 = pv.源.情報?.get(r.w.id);
+      if (元) { r.点 = 元.点; r.理由 = 元.理由; r.人気の位置 = 元.人気の位置; }
+    }
+    return;
+  }
+  const 全部 = state.works.filter((w) => w.区分 === '新番組' && w.予告編);
+  const 候補 = 全部.filter((w) => !state.pvSeen.has(w.id) && !state.notForMe.has(w.id));
+  pv.全体 = 全部.length;
+  pv.見送りずみ = 全部.length - 候補.length;
+
+  // 好みが分かっていれば、好みに近い順。分からなければ公開・放送の近い順
+  const 点つき = rankWorks(候補, state.taste, { lexicon: state.lexicon, 除外: new Set(), 人気の扱い: state.人気の扱い });
+  const 済 = new Set(点つき.map((r) => r.w.id));
+  const 残り = 候補
+    .filter((w) => !済.has(w.id))
+    .sort((a, b) => ((a.放送開始 ?? '9999') < (b.放送開始 ?? '9999') ? -1 : 1));
+
+  pv.list = [...点つき.map((r) => ({ w: r.w, 点: r.点, 理由: r.理由, 人気の位置: r.人気の位置 })),
+             ...残り.map((w) => ({ w, 点: null, 理由: null, 人気の位置: null }))];
+  pv.並び = 点つき.length ? '好みに近い順' : '公開・放送が近い順';
+}
+
+/** 見送った（最後まで観た／飛ばした）ことを覚える。次はここから先が流れる。 */
+function 見送った(w, 最後まで){
+  state.pvSeen.set(w.id, {
+    id: w.id, タイトル: w.タイトル, 日: today(),
+    最後まで観た: !!最後まで,
+  });
+  save('pvSeen');
+}
+
+function pvInfoHTML(){
+  const { w, 点, 理由 } = pv.list[pv.i];
+  const 配信 =
+      w.配信.劇場        ? `<span class="gek">🎬 ${esc(w.配信.劇場の言葉)}</span>`
+    : w.配信.契約中.length ? `<span class="own">▶ ${w.配信.契約中.map((s)=>esc(s.表示)).join('／')}</span>`
+    : w.配信.未加入.length ? w.配信.未加入.map((s)=>esc(s.表示)).join('／')
+    : w.配信.参考.length   ? `<span class="unk">${esc(w.配信.参考[0].表示)}</span>`
+    : `<span class="unk">${esc(w.配信.分からないときの言葉)}</span>`;
+
+  return `
+    <h2>${esc(w.タイトル)}</h2>
+    <div class="pvline"><b>${esc(w.放送開始表示)}</b> ${esc(w.日付ラベル)} ｜ ${esc(w.形式表示)}</div>
+    ${理由 ? `<div class="pvwhy">⭐ ${点 != null ? 点 + '点　' : ''}${esc(
+        // ★帯から来たときは、帯の理由に「知られ具合」がもう入っている。二重に足さない
+        pv.源 ? 理由 : [知られ具合(pv.list[pv.i].人気の位置), 理由].filter(Boolean).join('　')
+      )}</div>` : ''}
+    <div class="pvsvc">${配信}</div>
+    <div class="pvskip">終わると自動で次に進みます。押しても動画は止まりません。</div>`;
+}
+
+function pvを塗り直す(){
+  const { w } = pv.list[pv.i];
+  document.getElementById('pv-info').innerHTML = pvInfoHTML();
+  // ★全体の中のどこかを出す（続きから始まるので、1/83 とは限らない）
+  const いま = pv.見送りずみ + pv.i + 1;
+  document.getElementById('pv-count').textContent = `${いま} / ${pv.全体}`;
+  document.getElementById('pv-progress').style.width = `${(いま / pv.全体) * 100}%`;
+  const like = document.getElementById('pv-like');
+  const 押している = state.watchlist.has(w.id);
+  like.setAttribute('aria-pressed', String(押している));
+  like.textContent = 押している ? '♥ みたい に入れました' : '♥ みたい';
+}
+
+function pvを流す(n){
+  if (n >= pv.list.length){ pv一周した(); return; }
+  pv.i = n;
+  const { w } = pv.list[n];
+  pvを塗り直す();
+  if (pv.player?.loadVideoById) pv.player.loadVideoById(w.予告編);
+}
+
+/** @param 最後まで true=最後まで観た／false=飛ばした。どちらも「見送った」として覚える */
+function pvの次へ(最後まで = false){
+  見送った(pv.list[pv.i].w, 最後まで);
+  pvを流す(pv.i + 1);
+}
+
+/** 全部見送った。★「ぜんぶ観ました」を出して、はじめから観る道も置く */
+function pv一周した(){
+  try { pv.player?.stopVideo?.(); } catch {}
+  const 観た = [...state.pvSeen.values()];
+  document.getElementById('pv-info').innerHTML = `
+    <h2>🎉 ${pv.源 ? `「${esc(pv.源.名前)}」の` : ''}${pv.全体}作品ぜんぶ、観終わりました</h2>
+    <div class="pvline">最後まで観たのは ${観た.filter((x) => x.最後まで観た).length}作品、
+      飛ばしたのは ${観た.filter((x) => !x.最後まで観た).length}作品でした。</div>
+    <div class="pvline" style="margin-top:.6rem">
+      新しい作品が出てきたら、ここにまた並びます。</div>`;
+  document.querySelector('.pvstage').style.display = 'none';
+  document.getElementById('pv-count').textContent = `${pv.全体} / ${pv.全体}`;
+  document.getElementById('pv-progress').style.width = '100%';
+  const acts = document.querySelector('.pvacts');
+  acts.innerHTML = `
+    <button id="pv-again">⟲ もう一度はじめから</button>
+    <button class="next" id="pv-done">閉じる</button>`;
+  acts.querySelector('#pv-done').addEventListener('click', () => pvを閉じる(true));
+  acts.querySelector('#pv-again').addEventListener('click', () => {
+    // 見送った記録を消して、最初から流し直す
+    state.pvSeen.clear();
+    save('pvSeen');
+    pvを閉じる(false);
+    pvを開く();
+  });
+}
+
+async function pvを開く(源 = null){
+  pv.源 = 源;
+  順番をつくる();
+  if (!pv.list.length){
+    alert('予告編がある作品が見つかりませんでした');
+    return;
+  }
+  pv.i = 0;
+
+  document.getElementById('pvtime').innerHTML = `
+    <div class="pvtime">
+      <div class="pvhead">
+        <button class="pvclose" id="pv-close" aria-label="やめる">✕</button>
+        <div class="pvcount" id="pv-count"></div>
+        <div class="pvorder">${esc(pv.並び)}　${pv.源 ? `${pv.全体}作品` : (pv.見送りずみ ? `続きから（残り${pv.list.length}作品）` : `これから公開・放送される${pv.全体}作品`)}</div>
+        <button class="pvfull" id="pv-full" aria-label="フルスクリーン">⛶</button>
+      </div>
+      <div class="pvbar"><i id="pv-progress"></i></div>
+      <div class="pvstage"><div id="pv-player"></div></div>
+      <div class="pvbody" id="pv-info"></div>
+      <div class="pvacts three">
+        <button class="like" id="pv-like">♥ みたい</button>
+        <button class="nope2" id="pv-nope">🚫 興味ない</button>
+        <button class="next" id="pv-next">⏭ 次へ</button>
+      </div>
+    </div>`;
+  document.body.classList.add('locked');
+  pvを塗り直す();
+
+  const 箱 = document.querySelector('.pvtime');
+
+  // ── 映画館モード（フルスクリーン）
+  //    ★利用者の指定：「映画館のようにフルスクリーンにしてほしい」
+  //    ブラウザは「人が押したとき」しか全画面にできないので、開いた流れでそのまま入る
+  const 全画面へ = async () => {
+    try { if (!document.fullscreenElement) await 箱.requestFullscreen(); } catch {}
+  };
+  const 全画面を出る = async () => {
+    try { if (document.fullscreenElement) await document.exitFullscreen(); } catch {}
+  };
+  document.getElementById('pv-full').addEventListener('click', () => {
+    document.fullscreenElement ? 全画面を出る() : 全画面へ();
+  });
+
+  // 全画面のあいだは、動かしたときだけ文字を出す。ふだんは映像だけ（映画館と同じ）
+  let 眠らせる;
+  const 起こす = () => {
+    箱.classList.add('awake');
+    clearTimeout(眠らせる);
+    眠らせる = setTimeout(() => 箱.classList.remove('awake'), 2600);
+  };
+  箱.addEventListener('mousemove', 起こす);
+  箱.addEventListener('touchstart', 起こす, { passive: true });
+  箱.addEventListener('click', 起こす);
+  起こす();
+
+  document.getElementById('pv-close').addEventListener('click', async () => {
+    await 全画面を出る();
+    pvを閉じる(false);
+  });
+  document.getElementById('pv-next').addEventListener('click', () => pvの次へ(false));
+  // 観ながら「違う」と思ったら、その場で伝えて次へ。★動画は止めない
+  document.getElementById('pv-nope').addEventListener('click', () => {
+    const { w } = pv.list[pv.i];
+    state.notForMe.set(w.id, { id:w.id, タイトル:w.タイトル, 押した日: today() });
+    save('notForMe');
+    pvの次へ(false);
+  });
+  document.getElementById('pv-like').addEventListener('click', () => {
+    // ★押しても動画は止めない（予告編が消えた件と同じ轍を踏まない）
+    const { w } = pv.list[pv.i];
+    if (state.watchlist.has(w.id)) state.watchlist.delete(w.id);
+    else state.watchlist.set(w.id, {
+      id:w.id, タイトル:w.タイトル, ポスター:w.ポスター,
+      放送開始:w.放送開始, 区分:w.区分, 押した日: today(),
+    });
+    save('watchlist');
+    pvを塗り直す();
+  });
+
+  // ★ここで全画面に入る。await より前でないと「人が押した」扱いが切れて拒否される
+  全画面へ();
+
+  await YouTubeAPIを用意する();
+  pv.player = new YT.Player('pv-player', {
+    videoId: pv.list[0].w.予告編,
+    playerVars: { rel: 0, autoplay: 1, playsinline: 1 },
+    events: {
+      onReady: (e) => e.target.playVideo(),
+      // 1本終わったら、黙っていても次が流れる（映画館と同じ）
+      onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED) pvの次へ(true); },   // 最後まで観た
+      // 消された動画・埋め込み禁止の動画は、止まらずに飛ばす
+      onError: () => pvの次へ(false),   // 観られない動画は、飛ばしたことにして次へ
+    },
+  });
+}
+
+function pvを閉じる(最後まで見た){
+  try { pv.player?.destroy?.(); } catch {}
+  pv.player = null;
+  document.getElementById('pvtime').innerHTML = '';
+  document.body.classList.remove('locked');
+  recomputeTaste();
+  render();
+  if (最後まで見た) scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+
+/* ───────── 🔤 言葉で選ぶ（チェックするだけ）─────────
+   ★利用者の指摘「リストアップしてもらってチェックできる機能は作れますか？」
+     → ゼロから書かせない。こちらが並べて、押すだけにする。
+     ポスターの好み聞き取りが効いたのと同じ理由（並んでいるものからは選べる）。 */
+function 束の該当(b){
+  const ts = new Set(b.タグ ?? []), gs = new Set(b.ジャンル ?? []);
+  return state.works.filter((w) =>
+    ['新番組','放送中','最近公開'].includes(w.区分) &&
+    ((w.タグ ?? []).some((x) => x.重み >= 60 && ts.has(x.名前)) || (w.ジャンル ?? []).some((g) => gs.has(g))));
+}
+
+/** カタログに実際にある言葉を、多い順に。日本語にできるものだけ出す */
+function 選べる言葉(){
+  const 除外 = new Set(state.lexicon['理由に使わないタグ'] ?? []);
+  const c = new Map();
+  for (const w of state.works.filter((x) => ['新番組','放送中','最近公開'].includes(x.区分))) {
+    for (const x of w.タグ ?? []) if (x.重み >= 60 && !除外.has(x.名前)) c.set('タグ:'+x.名前, (c.get('タグ:'+x.名前) ?? 0) + 1);
+    for (const g of w.ジャンル ?? []) c.set('ジャンル:'+g, (c.get('ジャンル:'+g) ?? 0) + 1);
+  }
+  return [...c.entries()]
+    .map(([k, v]) => { const [種, ...r] = k.split(':'); const 名前 = r.join(':');
+      const ja = 種 === 'タグ' ? state.lexicon['タグ']?.[名前] : state.lexicon['ジャンル']?.[名前];
+      return { k, 種, 名前, ja, 数: v }; })
+    .filter((x) => x.ja && x.数 >= 3)
+    .sort((a, b) => b.数 - a.数);
+}
+
+function paintWords(){
+  const el = document.getElementById('words');
+  const 言葉 = 選べる言葉();
+  const 選択数 = state.選んだ束.size + state.選んだタグ.size;
+
+  el.innerHTML = `
+  <div class="words">
+    <header>
+      <h2>🔤 好きな内容を、押してください</h2>
+      <p>書かなくて大丈夫です。<b>押すだけ。</b><br>
+         1回押すと <b style="color:var(--gold)">✓ 好き</b>、もう1回で <b style="color:#ff7f9c">✕ 苦手</b>、もう1回で戻ります。</p>
+    </header>
+
+    <h3>利用者の言葉から<small>これまでの会話から作りました</small></h3>
+    <div class="bundles" id="w-bundles">
+      ${state.束.map((b) => {
+        const hit = 束の該当(b);
+        const 代表 = hit.slice().sort((a, c) => (c.人気|0) - (a.人気|0))[0];
+        const v = state.選んだ束.has(b.名前) ? '好き' : state.嫌いな束.has(b.名前) ? '苦手' : '';
+        return `<button class="bnd" data-b="${esc(b.名前)}" data-v="${v}">
+          <div class="pic">${代表?.ポスター ? `<img src="${esc(代表.ポスター)}" alt="" loading="lazy">` : ''}</div>
+          <div class="txt">
+            <div class="nm">${esc(b.名前)}</div>
+            <div class="ct">いま ${hit.length}作品${v ? `　${v === '好き' ? '✓ 好き' : '✕ 苦手'}` : ''}</div>
+            <div class="frm">${esc((b.由来 ?? '').split('。')[0])}</div>
+          </div>
+          <div class="tick2">${v === '好き' ? '✓' : v === '苦手' ? '✕' : '○'}</div>
+        </button>`;
+      }).join('')}
+    </div>
+
+    <h3>もっと細かく<small>いまカタログにある言葉・多い順に${言葉.length}種</small></h3>
+    <div class="chips" id="w-chips">
+      ${言葉.map((x) => {
+        const v = state.選んだタグ.has(x.k) ? '好き' : state.嫌いなタグ.has(x.k) ? '苦手' : '';
+        return `<button class="chip" data-k="${esc(x.k)}" data-v="${v}">${esc(x.ja)}<small>${x.数}</small></button>`;
+      }).join('')}
+    </div>
+
+    <div class="tbar">
+      <button id="w-clear">ぜんぶ外す</button>
+      <button class="primary" id="w-done">${選択数 ? `${選択数}個 選んで完了` : '選ばずに閉じる'}</button>
+    </div>
+  </div>`;
+  document.body.classList.add('locked');
+
+  const 直す = () => {
+    const 好 = state.選んだ束.size + state.選んだタグ.size;
+    const 嫌 = state.嫌いな束.size + state.嫌いなタグ.size;
+    document.getElementById('w-done').textContent =
+      好 + 嫌 ? `好き${好}・苦手${嫌} で完了` : '選ばずに閉じる';
+  };
+  // ○ → 好き → 苦手 → ○ の3段階
+  const 回す = (好, 嫌, 名) => {
+    if (好.has(名)) { 好.delete(名); 嫌.add(名); return '苦手'; }
+    if (嫌.has(名)) { 嫌.delete(名); return ''; }
+    好.add(名); return '好き';
+  };
+  el.querySelector('#w-bundles').addEventListener('click', (e) => {
+    const b = e.target.closest('.bnd'); if (!b) return;
+    const v = 回す(state.選んだ束, state.嫌いな束, b.dataset.b);
+    b.dataset.v = v;
+    b.querySelector('.tick2').textContent = v === '好き' ? '✓' : v === '苦手' ? '✕' : '○';
+    const ct = b.querySelector('.ct');
+    ct.textContent = ct.textContent.split('　')[0] + (v ? `　${v === '好き' ? '✓ 好き' : '✕ 苦手'}` : '');
+    直す(); 言葉を保存();
+  });
+  el.querySelector('#w-chips').addEventListener('click', (e) => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    c.dataset.v = 回す(state.選んだタグ, state.嫌いなタグ, c.dataset.k);
+    直す(); 言葉を保存();
+  });
+  el.querySelector('#w-clear').addEventListener('click', () => {
+    state.選んだ束.clear(); state.選んだタグ.clear();
+    state.嫌いな束.clear(); state.嫌いなタグ.clear();
+    言葉を保存(); paintWords();
+  });
+  el.querySelector('#w-done').addEventListener('click', closeWords);
+}
+
+function 言葉を保存(){
+  state.keywordPicks = {
+    束: [...state.選んだ束], タグ: [...state.選んだタグ],
+    嫌いな束: [...state.嫌いな束], 嫌いなタグ: [...state.嫌いなタグ],
+  };
+  save('keywordPicks');
+}
+
+function openWords(){
+  if (!state.束.length){ alert('言葉の束が読み込めませんでした（data/keywords.json）'); return; }
+  paintWords();
+}
+
+function closeWords(){
+  document.getElementById('words').innerHTML = '';
+  document.body.classList.remove('locked');
+  recomputeTaste();
+  render();
+  scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ───────── 起動 ───────── */
+function wireGroup(id, key){
+  document.getElementById(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    for (const x of e.currentTarget.querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b));
+    if (key === 'sort' && b.dataset.v === 'ばらばら' && state.sort === 'ばらばら') state.たね++;  // 押すたび混ぜ直す
+    state[key] = b.dataset.v;
+    render();
+  });
+}
+function wireToggle(id, key){
+  const el = document.getElementById(id);
+  el.addEventListener('click', () => {
+    state[key] = el.getAttribute('aria-pressed') !== 'true';
+    el.setAttribute('aria-pressed', String(state[key]));
+    render();
+  });
+}
+
+async function boot(){
+  try {
+    const [cat, st] = await Promise.all([
+      fetch('data/catalog.json').then(r => r.json()),
+      fetch('data/state.json').then(r => r.json()),
+    ]);
+    const seeds = null;   // ★タネ（6.5MB）は、画面を出してから後ろで読む（下の 遅れて読む()）
+    // ★この端末で押したものを、上からかぶせる（サーバーが無いので localStorage が保存先）
+    for (const k of ['watchlist','reviews','picks','taste','keywordPicks','notForMe','pvSeen']) {
+      try { const v = localStorage.getItem('anime:' + k); if (v != null) st[k] = JSON.parse(v); }
+      catch (e) { console.warn('この端末の保存が読めませんでした：' + k, e); }
+    }
+    if (cat.エラー) throw new Error(cat.エラー);
+
+    state.works = cat.作品;
+    state.byId = new Map(cat.作品.map(w => [w.id, w]));
+    state.更新 = new Date(cat.更新日時).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
+    state.契約 = st.config?.契約している配信 ?? [];
+    state.lexicon = st.lexicon ?? {};
+    state.seeds = seeds?.作品 ?? [];
+    for (const x of st.watchlist ?? []) state.watchlist.set(x.id, x);
+    for (const x of st.reviews ?? [])   state.reviews.set(x.id, x);
+    for (const x of st.picks ?? [])     state.picks.set(x.id, x);
+    for (const x of st.pvSeen ?? [])    state.pvSeen.set(x.id, x);
+    for (const x of st.notForMe ?? [])  state.notForMe.set(x.id, x);
+    state.人気の扱い = st.config?.人気の扱い ?? 'マイナーを上に';
+    state.束 = st.keywords?.束 ?? [];
+    state.lineage = st.lineage ?? null;
+    for (const x of st.keywordPicks?.束 ?? []) state.選んだ束.add(x);
+    for (const x of st.keywordPicks?.タグ ?? []) state.選んだタグ.add(x);
+    for (const x of st.keywordPicks?.嫌いな束 ?? []) state.嫌いな束.add(x);
+    for (const x of st.keywordPicks?.嫌いなタグ ?? []) state.嫌いなタグ.add(x);
+
+    // 好みは毎回その場で作り直す（reviews と picks があれば、いつでも再現できる）
+    state.taste = buildTaste({
+      picks:[...state.picks.values()], reviews:[...state.reviews.values()],
+      watchlist:[...state.watchlist.values()], notForMe:[...state.notForMe.values()],
+      選んだ言葉: 選んだ言葉を集める(), byId: state.byId,
+    });
+
+    document.getElementById('loading').hidden = true;
+    // ★タネは重いので後回し。届いたら並べ直す（届かなくても、一覧は動いたまま）
+    fetch('data/seeds.json').then(r => r.json()).then(s => {
+      state.seeds = s['作品'] ?? [];
+      render();
+    }).catch(e => console.warn('タネが読めませんでした（一覧は動きます）', e));
+    document.getElementById('shelves').addEventListener('click', (e) => {
+      const b = e.target.closest('.shelf'); if (!b || b.classList.contains('grp')) return;
+      state.棚 = b.dataset.k;
+      render();
+      scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    wireGroup('f-sort','sort');
+    wireToggle('f-watchable','watchable');
+    wireToggle('f-mine','mine');
+    document.getElementById('f-teach').addEventListener('click', openTeach);
+    document.getElementById('f-words').addEventListener('click', openWords);
+    const bare = document.getElementById('f-bare');
+    bare.addEventListener('click', () => {
+      state.bare = bare.getAttribute('aria-pressed') !== 'true';
+      bare.setAttribute('aria-pressed', String(state.bare));
+      // 絵だけにしたら、並びも「ばらばら」にする（予想させない）
+      if (state.bare && state.sort !== 'ばらばら') {
+        state.sort = 'ばらばら';
+        for (const x of document.querySelectorAll('#f-sort button'))
+          x.setAttribute('aria-pressed', String(x.dataset.v === 'ばらばら'));
+      }
+      render();
+    });
+    // ⚠️ pvを開く を直接渡すと、クリックの情報が第1引数（帯の中身）として渡ってしまい落ちる。
+    //    帯ごとの「続けて観る」を足したときに壊した。必ず包んで呼ぶこと。
+    document.getElementById('f-pvtime').addEventListener('click', () => pvを開く());
+    // ★この端末で押したものを、Macに戻すための出口。押すと中身が clipboard に入る
+    const 持出 = document.getElementById('f-export');
+    if (持出) 持出.addEventListener('click', async () => {
+      const 束 = {};
+      for (const k of ['watchlist','reviews','picks','keywordPicks','notForMe','pvSeen']) {
+        const v = localStorage.getItem('anime:' + k);
+        if (v != null) 束[k] = JSON.parse(v);
+      }
+      const 文 = JSON.stringify(束, null, 1);
+      try { await navigator.clipboard.writeText(文); flash('この端末の記録を写しました（' + 文.length + '文字）'); }
+      catch (e) { flash('⚠️ 写せませんでした：' + e.message, true); }
+    });
+
+    const カードを押したら = e => {
+      // ★行動ボタンを押したときは、個票を開かない
+      const 止 = e.target.closest('[data-stop]');
+      if (止) {
+        e.stopPropagation();
+        const s = 止.dataset.seen;
+        if (s) {
+          const id = Number(s);
+          const w = state.byId.get(id);
+          if (state.reviews.has(id)) state.reviews.delete(id);
+          else state.reviews.set(id, { id, タイトル: w.タイトル, みた日: today(), '★': 0, 感想: '', レビュー: '' });
+          save('reviews'); recomputeTaste(); render();
+        }
+        return;
+      }
+      const pv = e.target.closest('.play');
+      if (pv) { e.stopPropagation(); return openDetail(Number(pv.dataset.trailer), { 予告編から:true }); }
+      const c = e.target.closest('.card');
+      if (c) openDetail(Number(c.dataset.id));
+    };
+    document.getElementById('wall').addEventListener('click', カードを押したら);
+    // ★いま開いている棚を、そのまま続けて観る
+    document.getElementById('f-shelfplay').addEventListener('click', () => {
+      const 名前 = 棚の一覧().find((t) => t.key === state.棚)?.名 ?? '棚';
+      const list = visible();
+      const 情報 = new Map(list.map((r) => [r.w.id, r]));
+      pvを開く({ 名前, 作品: list.map((r) => r.w), 情報 });
+    });
+    document.getElementById('end').addEventListener('click', e => {
+      const b = e.target.closest('[data-end]'); if (!b) return;
+      if (b.dataset.end === 'top') return scrollTo({ top:0, behavior:'smooth' });
+      // 「拾ったものを見る」＝ ♥みたい・みた だけの絞り込みを入れて、先頭へ
+      const t = document.getElementById('f-mine');
+      if (t.getAttribute('aria-pressed') !== 'true') t.click();
+      scrollTo({ top:0, behavior:'smooth' });
+    });
+    // △先頭へ ─ 少し下げたら出す。個票や好み画面を開いている間は隠す
+    const totop = document.getElementById('totop');
+    totop.addEventListener('click', () => scrollTo({ top:0, behavior:'smooth' }));
+    const 出し入れ = () => {
+      const 開いている = document.body.classList.contains('locked');
+      totop.classList.toggle('on', !開いている && scrollY > 600);
+    };
+    addEventListener('scroll', 出し入れ, { passive:true });
+    new MutationObserver(出し入れ).observe(document.body, { attributes:true, attributeFilter:['class'] });
+    出し入れ();
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+    render();
+  } catch (e) {
+    document.getElementById('loading').innerHTML =
+      `読み込めませんでした：${esc(e.message)}<br><br>ターミナルで <code>node apps/anime-catalog/src/fetch.mjs</code> を先に動かしてください。`;
+  }
+}
+boot();
+</script>
+</body>
+</html>
