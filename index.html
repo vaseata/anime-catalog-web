@@ -402,6 +402,7 @@
   }
   .mine .h{color:#ff5a7c}
   .mine .s{color:var(--gold)}
+  .mine .b{color:#ffcc00}   /* 🔔 解禁ウォッチャーに入れた */
 
   .title{
     font-size:.76rem; line-height:1.35; font-weight:600;
@@ -521,6 +522,8 @@
   .hero-stats .heart{color:#ff5a7c; font-weight:700}
   .hero-stats .mystar{color:var(--gold); font-weight:700}
   .badge-mitai{font-size:.72rem; color:#ff8fa6; font-weight:700}
+  .badge-kaikin{font-size:.72rem; color:#ffcc00; font-weight:700}
+  .badge-kaikin small{color:#c9a86a; font-weight:500}
 
   .close{
     position:absolute; top:.6rem; left:.6rem; z-index:3; width:2.1rem; height:2.1rem;
@@ -541,6 +544,9 @@
   .acts button[aria-pressed="true"]{color:#ff5a7c}
   .acts button.watch[aria-pressed="true"]{color:#7fc4ff}
   .acts button:disabled{opacity:.35; cursor:default}
+  /* 🔔 解禁を見張る ─ 劇場アニメだけ4つ目が出る。押すと隣の解禁ウォッチャーに入る */
+  .acts.four{grid-template-columns:repeat(4,1fr)}
+  .acts button.bell[aria-pressed="true"]{color:#ffcc00}
 
   .bigbtn{
     display:block; margin:.9rem 1rem; padding:.85rem; border-radius:9px; border:0;
@@ -642,6 +648,7 @@ import { buildTaste, rankWorks, 続編を探す, tasteは空, 知られ具合, �
 const state = {
   works: [], byId: new Map(),
   watchlist: new Map(),   // id → { id, タイトル, ポスター, 押した日 }
+  kaikin:    new Map(),   // id → { id, タイトル, 公開日, 観る日, 見張り中 } ★解禁ウォッチャーに入れた劇場アニメ（隣のアプリのファイル）
   reviews:   new Map(),   // id → { id, タイトル, みた日, ★, 感想, レビュー }
   picks:     new Map(),   // id → 好み聞き取りでタップした作品（seeds の中身をそのまま）
   pvSeen:    new Map(),   // id → 予告編タイムで見送った作品 ★「また同じ予告編からか」を防ぐ
@@ -769,6 +776,7 @@ function card({ w, 点, 理由 }){
   const r = state.reviews.get(w.id);
   const 印 = [];
   if (state.watchlist.has(w.id)) 印.push('<span class="h">♥</span>');
+  if (state.kaikin.has(w.id))    印.push('<span class="b">🔔</span>');
   if (r?.['★']) 印.push(`<span class="s">★${r['★']}</span>`);
   else if (r) 印.push('<span class="s">👁</span>');
 
@@ -1175,6 +1183,17 @@ function render(){
 }
 
 /* ───────── 個票（MOVIE WALKER のあの画面） ───────── */
+/** 個票の印。♥みたい と 🔔解禁ウォッチャー の2種類。 */
+function badgesHtml(w){
+  const out = [];
+  if (state.watchlist.has(w.id)) out.push('<div class="badge-mitai">✅ みたい登録ずみ</div>');
+  const k = state.kaikin.get(w.id);
+  if (k) out.push(k.見張り中
+    ? `<div class="badge-kaikin">🔔 解禁ウォッチャーが見張っています <small>観る日 ${esc(k.観る日.join('・'))}</small></div>`
+    : '<div class="badge-kaikin">🔔 解禁ウォッチャーに入れました <small>観る日はまだ未定。アイに伝えると見張りが始まります</small></div>');
+  return out.join('');
+}
+
 function openDetail(id, { 予告編から = false } = {}){
   const w = state.byId.get(id);
   if (!w) return;
@@ -1234,7 +1253,7 @@ function openDetail(id, { 予告編から = false } = {}){
           <h2>${esc(w.タイトル)}</h2>
           <div class="hero-line"><b>${esc(w.放送開始表示)}</b> ${esc(w.日付ラベル)}</div>
           <div class="hero-line">${esc(行)}</div>
-          <div id="badge-slot">${wl ? '<div class="badge-mitai">✅ みたい登録ずみ</div>' : ''}</div>
+          <div id="badge-slot">${badgesHtml(w)}</div>
           <div class="hero-stats" id="hero-stats">
             <span class="heart">♥ ${(w.人気|0).toLocaleString('ja-JP')}</span>
             ${星 ? `<span class="mystar">${'★'.repeat(星)}${'☆'.repeat(5-星)} ${星}.0</span>` : ''}
@@ -1243,10 +1262,11 @@ function openDetail(id, { 予告編から = false } = {}){
       </div>
     </div>
 
-    <div class="acts">
+    <div class="acts${w.形式 === 'MOVIE' ? ' four' : ''}">
       <button id="b-mitai" aria-pressed="${wl}"><span class="ico">♥</span>みたい</button>
       <button id="b-mita" class="watch" aria-pressed="${!!rv}"><span class="ico">👁</span>みた</button>
       <button id="b-pv" ${w.予告編 ? '' : 'disabled'}><span class="ico">▶</span>${w.予告編 ? '予告編' : '予告編なし'}</button>
+      ${false && w.形式 === 'MOVIE' ? `<button id="b-kaikin" class="bell" aria-pressed="${state.kaikin.has(w.id)}" title="劇場の売り出しを見張って、LINEで知らせる"><span class="ico">🔔</span>${state.kaikin.has(w.id) ? '見張り登録ずみ' : '解禁を見張る'}</button>` : ''}
     </div>
 
     <div id="pv-slot"></div>
@@ -1302,8 +1322,13 @@ function refreshDetail(w){
 
   document.getElementById('b-mitai').setAttribute('aria-pressed', String(wl));
   document.getElementById('b-mita').setAttribute('aria-pressed', String(!!rv));
-  document.getElementById('badge-slot').innerHTML =
-    wl ? '<div class="badge-mitai">✅ みたい登録ずみ</div>' : '';
+  document.getElementById('badge-slot').innerHTML = badgesHtml(w);
+  const bK = document.getElementById('b-kaikin');
+  if (bK){
+    const on = state.kaikin.has(w.id);
+    bK.setAttribute('aria-pressed', String(on));
+    bK.innerHTML = `<span class="ico">🔔</span>${on ? '見張り登録ずみ' : '解禁を見張る'}`;
+  }
 
   const hs = document.getElementById('hero-stats');
   hs.querySelector('.mystar')?.remove();
@@ -1353,6 +1378,25 @@ function wireDetail(w){
     });
     save('watchlist');
     refreshDetail(w);   // ★作り直さない。予告編を見ている最中でも動画が止まらない
+  });
+
+  // 🔔 解禁を見張る → 隣の解禁ウォッチャーの watchlist.json に1本ぶん書く（サーバーが書く）
+  const bK = document.getElementById('b-kaikin');
+  bK?.addEventListener('click', async () => {
+    const on = !state.kaikin.has(w.id);
+    bK.disabled = true;
+    try {
+      const r = await fetch('/api/kaikin', { method:'POST', body: JSON.stringify({ id: w.id, on }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.エラー ?? r.statusText);
+      state.kaikin.clear();
+      for (const x of j.kaikin ?? []) if (x.id != null) state.kaikin.set(x.id, x);
+      flash(on ? '🔔 解禁ウォッチャーに入れました' : '解禁ウォッチャーから外しました');
+    } catch (e) {
+      flash('⚠️ 解禁ウォッチャーに書けませんでした：' + e.message, true);
+    }
+    bK.disabled = false;
+    refreshDetail(w);
   });
 
   // 👁 みた → 押すと記録欄が開く
@@ -1935,6 +1979,7 @@ async function boot(){
     state.lexicon = st.lexicon ?? {};
     state.seeds = seeds?.作品 ?? [];
     for (const x of st.watchlist ?? []) state.watchlist.set(x.id, x);
+    for (const x of st.kaikin ?? [])    if (x.id != null) state.kaikin.set(x.id, x);
     for (const x of st.reviews ?? [])   state.reviews.set(x.id, x);
     for (const x of st.picks ?? [])     state.picks.set(x.id, x);
     for (const x of st.pvSeen ?? [])    state.pvSeen.set(x.id, x);
