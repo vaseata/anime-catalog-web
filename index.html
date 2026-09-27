@@ -627,7 +627,8 @@
     <button class="toggle" id="f-words">🔤 言葉で選ぶ</button>
     <button class="toggle" id="f-bare" aria-pressed="false">🖼 絵だけで見る</button>
     <button class="toggle" id="f-shelfplay" style="background:#2a0d15;border-color:#a3324c;color:#ff9fb5;font-weight:800">▶ この棚を続けて観る</button>
-    <button class="toggle" id="f-export" title="この端末で押した♥などを写して、Macに戻すため">📤 記録を写す</button>
+    <button class="toggle" id="f-export" title="この端末で押した♥などを写す。別の端末の「📥 記録を読み込む」に貼る">📤 記録を写す</button>
+    <button class="toggle" id="f-import" title="別の端末で写した記録を、この端末に足す">📥 記録を読み込む</button>
     <button class="toggle" id="f-pvtime" style="background:#1a1520;border-color:#4a4550;color:#c9b9d9;font-weight:700">🎞 予告編タイム</button>
   </div>
 </header>
@@ -2039,9 +2040,46 @@ async function boot(){
         const v = localStorage.getItem('anime:' + k);
         if (v != null) 束[k] = JSON.parse(v);
       }
-      const 文 = JSON.stringify(束, null, 1);
+      束.形式 = 'anime-catalog 記録';
+      // ★字下げ無しで写す。利用者規模（161作品）で 20万→13万文字。LINEには載らない長さなので、
+      //   iPhone→Mac はユニバーサルクリップボードかメモAppで運ぶ
+      const 文 = JSON.stringify(束);
       try { await navigator.clipboard.writeText(文); flash('この端末の記録を写しました（' + 文.length + '文字）'); }
       catch (e) { flash('⚠️ 写せませんでした：' + e.message, true); }
+    });
+
+    // ★2026-09-28 利用者の指摘→ 残らない。だから入口を作る
+    //   別の端末で「📤 記録を写す」した中身を貼ると、この端末の記録に★足す★（上書きではない）。
+    //   同じ作品が両方にあれば、貼った方を採る。
+    const 読込 = document.getElementById('f-import');
+    if (読込) 読込.addEventListener('click', () => {
+      const 文 = prompt('別の端末で「📤 記録を写す」した中身を、ここに貼ってください。\nこの端末の記録に足します（消えはしません）');
+      if (!文 || !文.trim()) return;
+      let 束;
+      try { 束 = JSON.parse(文); } catch { flash('⚠️ 読めませんでした。「📤 記録を写す」の中身をそのまま貼ってください', true); return; }
+      if (!束 || typeof 束 !== 'object' || Array.isArray(束)) { flash('⚠️ 記録の形ではありませんでした', true); return; }
+      const 読む = (k, 既定) => { try { return JSON.parse(localStorage.getItem('anime:' + k)) ?? 既定; } catch { return 既定; } };
+      const 報告 = [];
+      for (const k of ['watchlist','reviews','picks','notForMe','pvSeen']) {
+        if (!Array.isArray(束[k])) continue;
+        const 手元 = new Map(読む(k, []).filter(x => x && x.id != null).map(x => [x.id, x]));
+        const 前 = 手元.size;
+        for (const x of 束[k]) if (x && x.id != null) 手元.set(x.id, x);
+        localStorage.setItem('anime:' + k, JSON.stringify([...手元.values()]));
+        報告.push(k + ' +' + (手元.size - 前));
+      }
+      if (束.keywordPicks && typeof 束.keywordPicks === 'object') {
+        const 手元 = 読む('keywordPicks', { 束: [], タグ: [] });
+        for (const [k, v] of Object.entries(束.keywordPicks)) {
+          if (Array.isArray(v)) 手元[k] = [...new Set([...(手元[k] ?? []), ...v])];
+        }
+        localStorage.setItem('anime:keywordPicks', JSON.stringify(手元));
+      }
+      if (!報告.length) { flash('⚠️ 足せる記録が入っていませんでした', true); return; }
+      // 好み（taste）は起動のたびに picks・★・♥ から作り直されるので、読み直せば効く
+      localStorage.removeItem('anime:taste');
+      alert('記録を足しました（' + 報告.join('・') + '）。読み直します');
+      location.reload();
     });
 
     const カードを押したら = e => {
